@@ -1,4 +1,4 @@
-import jwt from 'jsonwebtoken';
+const jwt = require('jsonwebtoken');
 import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
 import { JWTPayload, User, SessionData } from '@/types';
@@ -23,18 +23,18 @@ export const auth = {
 
   // Generate JWT token
   generateToken(payload: JWTPayload): string {
-    return jwt.sign(payload, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
+    return jwt.sign(payload as any, JWT_SECRET as string, { expiresIn: JWT_EXPIRES_IN as string });
   },
 
   // Generate refresh token
   generateRefreshToken(payload: JWTPayload): string {
-    return jwt.sign(payload, JWT_REFRESH_SECRET, { expiresIn: JWT_REFRESH_EXPIRES_IN });
+    return jwt.sign(payload as any, JWT_REFRESH_SECRET as string, { expiresIn: JWT_REFRESH_EXPIRES_IN as string });
   },
 
   // Verify JWT token
   verifyToken(token: string): JWTPayload | null {
     try {
-      return jwt.verify(token, JWT_SECRET) as JWTPayload;
+      return jwt.verify(token, JWT_SECRET as string) as JWTPayload;
     } catch (error) {
       return null;
     }
@@ -43,7 +43,7 @@ export const auth = {
   // Verify refresh token
   verifyRefreshToken(token: string): JWTPayload | null {
     try {
-      return jwt.verify(token, JWT_REFRESH_SECRET) as JWTPayload;
+      return jwt.verify(token, JWT_REFRESH_SECRET as string) as JWTPayload;
     } catch (error) {
       return null;
     }
@@ -117,10 +117,10 @@ export const auth = {
       isActive: user.isActive,
       emailVerified: user.emailVerified,
       createdAt: user.createdAt,
-      updatedAt: user.updatedAt,
+      updatedAt: user.updatedAt || user.createdAt,
       lastLogin: user.lastLogin,
       permissions: typeof user.permissions === 'string' ? JSON.parse(user.permissions) : user.permissions
-    };
+    } as User;
   },
 
   // Create user session

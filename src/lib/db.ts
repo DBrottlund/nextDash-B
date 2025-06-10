@@ -6,7 +6,7 @@ const dbConfig = {
   user: process.env.DB_USER || 'root',
   password: process.env.DB_PASSWORD || '',
   database: process.env.DB_NAME || 'nextdash_b',
-  ssl: false,
+  ssl: process.env.DB_SSL === 'true' ? {} : false,
   waitForConnections: true,
   connectionLimit: 10,
   queueLimit: 0,

@@ -44,7 +44,8 @@ export default function LoginPage() {
         setError(data.message || 'Login failed');
       }
     } catch (err) {
-      setError('An error occurred during login');
+      console.error('Login error:', err);
+      setError('Network error occurred during login');
     } finally {
       setLoading(false);
     }

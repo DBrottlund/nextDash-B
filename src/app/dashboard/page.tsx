@@ -29,7 +29,7 @@ export default function DashboardPage() {
     <div>
       <div className="mb-6">
         <Title level={2}>
-          Welcome back, {user?.firstName || 'User'}! =K
+          Welcome back, {user?.firstName || 'User'}!
         </Title>
         <p className="text-gray-600">
           Here's what's happening with your dashboard today.

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Layout, Menu, Avatar, Dropdown, Button, Typography, Spin } from 'antd';
+import { Layout, Menu, Avatar, Dropdown, Button, Typography, Spin, Switch, Tooltip } from 'antd';
 import { 
   MenuFoldOutlined, 
   MenuUnfoldOutlined,
@@ -10,36 +10,19 @@ import {
   TeamOutlined,
   SettingOutlined,
   LogoutOutlined,
-  BellOutlined
+  BellOutlined,
+  ToolOutlined,
+  AppstoreOutlined,
+  BulbOutlined,
+  BulbFilled
 } from '@ant-design/icons';
 import { useRouter } from 'next/navigation';
+import { useAuth } from '@/hooks/useAuth';
+import { useTheme } from '@/contexts/ThemeContext';
 import Link from 'next/link';
 
 const { Header, Sider, Content } = Layout;
 const { Title } = Typography;
-
-const menuItems = [
-  {
-    key: '/dashboard',
-    icon: <DashboardOutlined />,
-    label: <Link href="/dashboard">Dashboard</Link>,
-  },
-  {
-    key: '/dashboard/users',
-    icon: <UserOutlined />,
-    label: <Link href="/dashboard/users">Users</Link>,
-  },
-  {
-    key: '/dashboard/roles',
-    icon: <TeamOutlined />,
-    label: <Link href="/dashboard/roles">Roles</Link>,
-  },
-  {
-    key: '/dashboard/settings',
-    icon: <SettingOutlined />,
-    label: <Link href="/dashboard/settings">Settings</Link>,
-  },
-];
 
 export default function DashboardLayout({
   children,
@@ -47,34 +30,75 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   const [collapsed, setCollapsed] = useState(false);
-  const [user, setUser] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
   const router = useRouter();
+  const { user, loading, isAuthenticated, logout, canAccessUsers, canAccessRoles, canAccessSettings, isAdmin } = useAuth();
+  const { themeMode, toggleThemeMode } = useTheme();
 
   useEffect(() => {
-    // Check authentication
-    const token = localStorage.getItem('auth_token');
-    const userData = localStorage.getItem('user');
-    const guestData = localStorage.getItem('guest_data');
-
-    if (token && userData) {
-      setUser(JSON.parse(userData));
-    } else if (guestData) {
-      setUser({ email: 'guest@example.com', firstName: 'Guest', lastName: 'User' });
-    } else {
+    if (!loading && !isAuthenticated) {
       router.push('/login');
-      return;
     }
-
-    setLoading(false);
-  }, [router]);
+  }, [loading, isAuthenticated, router]);
 
   const handleLogout = () => {
-    localStorage.removeItem('auth_token');
-    localStorage.removeItem('refresh_token');
-    localStorage.removeItem('user');
-    localStorage.removeItem('guest_data');
+    logout();
     router.push('/login');
+  };
+
+  // Build menu items based on user permissions
+  const buildMenuItems = () => {
+    const items: any[] = [
+      {
+        key: '/dashboard',
+        icon: <DashboardOutlined />,
+        label: <Link href="/dashboard">Dashboard</Link>,
+      },
+    ];
+
+    // Add Users menu if user has permission
+    if (canAccessUsers()) {
+      items.push({
+        key: '/dashboard/users',
+        icon: <UserOutlined />,
+        label: <Link href="/dashboard/users">Users</Link>,
+      });
+    }
+
+    // Add Roles menu if user has permission (admin only)
+    if (canAccessRoles()) {
+      items.push({
+        key: '/dashboard/roles',
+        icon: <TeamOutlined />,
+        label: <Link href="/dashboard/roles">Roles</Link>,
+      });
+    }
+
+    // Add Settings menu if user has permission
+    if (canAccessSettings()) {
+      items.push({
+        key: '/dashboard/settings',
+        icon: <SettingOutlined />,
+        label: <Link href="/dashboard/settings">Settings</Link>,
+      });
+    }
+
+    // Add Admin menu if user is admin
+    if (isAdmin()) {
+      items.push({
+        key: 'admin',
+        icon: <ToolOutlined />,
+        label: <span>Admin</span>,
+        children: [
+          {
+            key: '/dashboard/admin/app-settings',
+            icon: <AppstoreOutlined />,
+            label: <Link href="/dashboard/admin/app-settings">App Settings</Link>,
+          },
+        ],
+      });
+    }
+
+    return items;
   };
 
   const userMenuItems = [
@@ -107,6 +131,10 @@ export default function DashboardLayout({
     );
   }
 
+  if (!isAuthenticated) {
+    return null; // Will redirect to login
+  }
+
   return (
     <Layout className="min-h-screen">
       <Sider 
@@ -126,7 +154,7 @@ export default function DashboardLayout({
           theme="light"
           mode="inline"
           defaultSelectedKeys={['/dashboard']}
-          items={menuItems}
+          items={buildMenuItems()}
           className="border-0"
         />
       </Sider>
@@ -143,6 +171,16 @@ export default function DashboardLayout({
           </div>
           
           <div className="flex items-center space-x-4">
+            <Tooltip title={`Switch to ${themeMode === 'light' ? 'dark' : 'light'} mode`}>
+              <Switch
+                checkedChildren={<BulbFilled />}
+                unCheckedChildren={<BulbOutlined />}
+                checked={themeMode === 'dark'}
+                onChange={toggleThemeMode}
+                size="default"
+              />
+            </Tooltip>
+            
             <Button type="text" icon={<BellOutlined />} />
             
             <Dropdown menu={{ items: userMenuItems }} placement="bottomRight">
@@ -156,7 +194,7 @@ export default function DashboardLayout({
           </div>
         </Header>
         
-        <Content className="p-6 bg-gray-50">
+        <Content className="p-6" style={{ background: 'transparent' }}>
           {children}
         </Content>
       </Layout>

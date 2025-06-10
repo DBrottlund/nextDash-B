@@ -1,9 +1,9 @@
-import { type ClassValue, clsx } from 'clsx';
+// import { type ClassValue, clsx } from 'clsx';
 import crypto from 'crypto';
 
-// Utility for combining class names
-export function cn(...inputs: ClassValue[]) {
-  return clsx(inputs);
+// Utility for combining class names  
+export function cn(...inputs: any[]) {
+  return inputs.filter(Boolean).join(' ');
 }
 
 // Generate random string

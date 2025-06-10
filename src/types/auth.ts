@@ -1,3 +1,5 @@
+import { User } from './user';
+
 export interface LoginCredentials {
   email: string;
   password: string;
@@ -16,21 +18,6 @@ export interface AuthResponse {
   user?: User;
   token?: string;
   refreshToken?: string;
-}
-
-export interface User {
-  id: number;
-  email: string;
-  firstName: string;
-  lastName: string;
-  roleId: number;
-  roleName: string;
-  avatarUrl?: string;
-  isActive: boolean;
-  emailVerified: boolean;
-  createdAt: string;
-  lastLogin?: string;
-  permissions: Record<string, string[]>;
 }
 
 export interface JWTPayload {
