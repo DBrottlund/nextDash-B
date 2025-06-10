@@ -47,30 +47,79 @@ In your Hostinger Control Panel:
 - Note your database name and username (format: `u######_dbname`)
 - Copy your password
 
-**Update `.env.local`:**
+**Complete `.env.local` Configuration:**
 ```bash
-# Database Configuration
-DB_HOST="srv574.hstgr.io"              # Your server
-DB_NAME="u400736858_nextdashb"         # Your database name
-DB_USER="u400736858_nextdashb"         # Your database user
-DB_PASSWORD="your_actual_password"     # Your database password
+# App Configuration
+NEXT_PUBLIC_APP_NAME="NextDash-B"
+NEXT_PUBLIC_APP_URL="http://localhost:3000"
+NODE_ENV="development"
 
-# Generate JWT Secrets
-JWT_SECRET="[run: node -e 'console.log(require(\"crypto\").randomBytes(64).toString(\"hex\"))']"
-JWT_REFRESH_SECRET="[run above command again]"
+# Database Configuration (Hostinger)
+# Find these in Hostinger Control Panel > Databases > MySQL Databases
+# Host format: srv[number].hstgr.io (e.g., srv574.hstgr.io)
+DB_HOST="srv574.hstgr.io"
+DB_PORT="3306"
+DB_NAME="u[account]_[dbname]"
+DB_USER="u[account]_[dbname]"
+DB_PASSWORD="your_database_password"
+DB_SSL="false"
 
-# Configure Admin Users
+# Authentication
+# Generate with: node -e "console.log(require('crypto').randomBytes(64).toString('hex'))"
+JWT_SECRET="generate-64-char-random-string"
+JWT_REFRESH_SECRET="generate-another-64-char-random-string"
+JWT_EXPIRES_IN="1h"
+JWT_REFRESH_EXPIRES_IN="7d"
+
+# Email Configuration (SMTP2GO or other)
+SMTP_HOST="mail.smtp2go.com"
+SMTP_PORT="2525"
+SMTP_USER="your-smtp-username@example.com"
+SMTP_PASSWORD="your-smtp-password"
+FROM_EMAIL="noreply@yourdomain.com"
+
+# Redis Configuration (optional, for job queue)
+REDIS_URL="redis://localhost:6379"
+
+# Worker Configuration
+WORKER_ENABLED="true"
+WORKER_INTERVAL="60000"
+
+# File Upload
+MAX_FILE_SIZE="5MB"
+UPLOAD_DIR="./uploads"
+
+# Security
+BCRYPT_ROUNDS="12"
+RATE_LIMIT_WINDOW="15"
+RATE_LIMIT_MAX="100"
+
+# Analytics (optional)
+GOOGLE_ANALYTICS_ID=""
+
+# Development
+DEBUG="true"
+LOG_LEVEL="debug"
+
+# Default Admin Users (for database setup)
 ADMIN_EMAIL="your-email@example.com"
 ADMIN_PASSWORD="your-secure-password"
 ADMIN_FIRST_NAME="Your"
 ADMIN_LAST_NAME="Name"
 
-# Optional Second Admin
+# Secondary Admin User (optional)
 ADMIN2_EMAIL="admin@example.com"
 ADMIN2_PASSWORD="admin123"
 ADMIN2_FIRST_NAME="Admin"
 ADMIN2_LAST_NAME="User"
 ```
+
+**Key Configuration Notes:**
+- Replace `srv574.hstgr.io` with your actual Hostinger server
+- Replace `u[account]_[dbname]` with your actual database credentials
+- Generate secure JWT secrets using the provided command
+- Configure your SMTP provider (SMTP2GO example shown)
+- Set your admin user credentials for database setup
 
 ### 4. **Test Database Connection**
 ```bash
