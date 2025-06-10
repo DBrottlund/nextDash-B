@@ -21,49 +21,95 @@ A modern, feature-rich SaaS dashboard boilerplate built with Next.js 14, TypeScr
 
 ## 🛠️ Installation
 
-1. **Clone the repository**
-   ```bash
-   git clone <your-repo-url>
-   cd nextDash-B
-   ```
+### 1. **Clone and Install**
+```bash
+git clone https://github.com/DBrottlund/nextDash-B.git
+cd nextDash-B
+npm install
+```
 
-2. **Install dependencies**
-   ```bash
-   npm install
-   ```
+### 2. **Set up Environment Variables**
+```bash
+cp .env.example .env.local
+```
 
-3. **Set up environment variables**
-   ```bash
-   cp .env.example .env.local
-   ```
-   
-   Update the `.env.local` file with your database credentials and other settings.
+### 3. **Configure Hostinger Database**
+In your Hostinger Control Panel:
 
-4. **Set up the database**
-   ```bash
-   # Create database and run migrations
-   npm run migrate
-   
-   # Seed initial data
-   npm run seed
-   ```
+**Enable Remote MySQL:**
+- Go to **Hosting → Manage → Databases → Remote MySQL**
+- Add your IP address or use `%` for all IPs
+- Save changes
 
-5. **Start the development server**
-   ```bash
-   npm run dev
-   ```
+**Get Database Credentials:**
+- Go to **Databases → MySQL Databases**
+- Note your host (format: `srv###.hstgr.io`)
+- Note your database name and username (format: `u######_dbname`)
+- Copy your password
 
-6. **Start the worker (optional)**
-   ```bash
-   npm run worker:dev
-   ```
+**Update `.env.local`:**
+```bash
+# Database Configuration
+DB_HOST="srv574.hstgr.io"              # Your server
+DB_NAME="u400736858_nextdashb"         # Your database name
+DB_USER="u400736858_nextdashb"         # Your database user
+DB_PASSWORD="your_actual_password"     # Your database password
+
+# Generate JWT Secrets
+JWT_SECRET="[run: node -e 'console.log(require(\"crypto\").randomBytes(64).toString(\"hex\"))']"
+JWT_REFRESH_SECRET="[run above command again]"
+
+# Configure Admin Users
+ADMIN_EMAIL="your-email@example.com"
+ADMIN_PASSWORD="your-secure-password"
+ADMIN_FIRST_NAME="Your"
+ADMIN_LAST_NAME="Name"
+
+# Optional Second Admin
+ADMIN2_EMAIL="admin@example.com"
+ADMIN2_PASSWORD="admin123"
+ADMIN2_FIRST_NAME="Admin"
+ADMIN2_LAST_NAME="User"
+```
+
+### 4. **Test Database Connection**
+```bash
+npm run test-db
+```
+
+### 5. **Set up Database (Single Command)**
+```bash
+npm run setup-env
+```
+
+This creates:
+- ✅ All database tables
+- ✅ User roles with permissions
+- ✅ Admin users from your environment variables
+- ✅ App settings and menu structure
+
+### 6. **Start Development**
+```bash
+npm run dev
+```
+
+### 7. **Access Your App**
+- 🌐 Open: http://localhost:3000
+- 🔑 Login with your configured admin credentials
 
 ## 🎯 Quick Start
 
 1. Open [http://localhost:3000](http://localhost:3000) in your browser
-2. Use the demo account: `admin@nextdash.com` / `admin123`
-3. Or create a new account via the registration form
-4. Explore the dashboard features and admin settings
+2. Login with your configured admin credentials from `.env.local`
+3. Explore the dashboard features and admin settings
+
+## 🛠️ Available Scripts
+
+- `npm run dev` - Start development server
+- `npm run build` - Build for production
+- `npm run test-db` - Test database connection
+- `npm run setup-env` - **Complete database setup with environment users**
+- `npm run diagnose-db` - Troubleshoot database connection issues
 
 ## 📁 Project Structure
 
@@ -139,6 +185,37 @@ npm run type-check
 # Run linting
 npm run lint
 ```
+
+## 🔧 Hostinger Setup Troubleshooting
+
+### **Database Connection Issues:**
+
+1. **"Access denied" errors:**
+   - Verify Remote MySQL is enabled in Hostinger
+   - Check your IP is whitelisted (or use `%` for all IPs)
+   - Confirm exact password in Hostinger control panel
+   - Try resetting the database password
+
+2. **"Host not found" errors:**
+   - Double-check the host format: `srv###.hstgr.io`
+   - Find correct host in Hostinger → Databases → MySQL
+
+3. **"Connection timeout" errors:**
+   - Your IP might not be whitelisted
+   - Try using `%` (wildcard) in Remote MySQL settings
+
+### **Useful Diagnostic Commands:**
+```bash
+npm run test-db        # Test basic connection
+npm run diagnose-db    # Try multiple connection methods
+```
+
+### **Manual Database Setup:**
+If remote connection fails, use phpMyAdmin:
+1. Go to Hostinger → Databases → phpMyAdmin
+2. Copy/paste contents of `database/schema.sql`
+3. Run each file in `database/seeds/` folder
+4. Manually create admin users in the `users` table
 
 ## 📚 API Documentation
 
