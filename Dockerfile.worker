@@ -1,0 +1,27 @@
+# NextDash-B Worker Dockerfile
+FROM node:18-alpine
+
+WORKDIR /app
+
+# Install dependencies
+COPY package.json package-lock.json* ./
+RUN npm ci --only=production
+
+# Copy worker source code
+COPY worker/ ./worker/
+COPY database/ ./database/
+COPY src/lib/ ./src/lib/
+
+# Install additional dependencies for worker
+RUN npm install mysql2 bcryptjs dotenv node-cron nodemailer
+
+# Create logs directory
+RUN mkdir -p ./logs && chown node:node ./logs
+
+USER node
+
+# Health check for worker
+HEALTHCHECK --interval=60s --timeout=5s --start-period=10s --retries=3 \
+  CMD ps aux | grep -v grep | grep node || exit 1
+
+CMD ["npm", "run", "worker"]

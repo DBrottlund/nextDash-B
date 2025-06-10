@@ -1,0 +1,67 @@
+# Hostinger-optimized Dockerfile
+# Single container with integrated worker for simpler deployment
+
+FROM node:18-alpine AS base
+
+# Install dependencies only when needed
+FROM base AS deps
+RUN apk add --no-cache libc6-compat curl
+WORKDIR /app
+
+COPY package.json package-lock.json* ./
+RUN npm ci --only=production
+
+# Rebuild the source code only when needed
+FROM base AS builder
+WORKDIR /app
+COPY --from=deps /app/node_modules ./node_modules
+COPY . .
+
+# Build the application
+RUN npm run build
+
+# Production image for Hostinger
+FROM base AS runner
+WORKDIR /app
+
+ENV NODE_ENV production
+
+# Install curl for health checks
+RUN apk add --no-cache curl
+
+RUN addgroup --system --gid 1001 nodejs
+RUN adduser --system --uid 1001 nextjs
+
+# Create directories
+RUN mkdir -p ./uploads ./logs && chown nextjs:nodejs ./uploads ./logs
+
+# Copy built application
+COPY --from=builder /app/public ./public
+COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
+COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+
+# Copy necessary files for database and worker
+COPY --from=builder /app/scripts ./scripts
+COPY --from=builder /app/database ./database
+COPY --from=builder /app/worker ./worker
+COPY --from=builder /app/package.json ./package.json
+
+# Install production dependencies for scripts and worker
+RUN npm install mysql2 bcryptjs dotenv node-cron nodemailer --omit=dev
+
+# Create startup script that handles both app and worker
+COPY --from=builder /app/scripts/start-hostinger.sh ./start-hostinger.sh
+RUN chmod +x ./start-hostinger.sh
+
+USER nextjs
+
+EXPOSE 3000
+
+ENV PORT 3000
+ENV HOSTNAME "0.0.0.0"
+
+# Health check with longer timeout for external database
+HEALTHCHECK --interval=60s --timeout=10s --start-period=40s --retries=3 \
+  CMD curl -f http://localhost:3000/api/health || exit 1
+
+CMD ["./start-hostinger.sh"]

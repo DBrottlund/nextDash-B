@@ -1,0 +1,67 @@
+# Dependencies
+node_modules
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Next.js
+.next/
+out/
+
+# Environment variables
+.env*.local
+.env
+
+# Git
+.git
+.gitignore
+
+# Docker
+Dockerfile*
+docker-compose*.yml
+.dockerignore
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+logs/
+*.log
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Coverage directory used by tools like istanbul
+coverage/
+
+# Uploads
+uploads/
+
+# Temporary directories
+.tmp/
+.temp/
+
+# Documentation
+docs/
+*.md
+!README.md
+
+# Testing
+.nyc_output
+
+# Scripts (except database setup)
+scripts/test-*
+scripts/diagnose-*
+scripts/check-*
+
+# Database files
+*.db
+*.sqlite

@@ -16,7 +16,17 @@
     "test-db": "node scripts/test-connection.js",
     "diagnose-db": "node scripts/diagnose-connection.js",
     "setup-simple": "node scripts/setup-simple.js",
-    "setup-env": "node scripts/setup-env-users.js"
+    "setup-env": "node scripts/setup-env-users.js",
+    "docker:build": "docker build -t nextdash-b .",
+    "docker:run": "docker run -p 3000:3000 --env-file .env nextdash-b",
+    "docker:up": "./scripts/docker-setup.sh",
+    "docker:dev": "./scripts/docker-dev.sh",
+    "docker:down": "docker-compose down",
+    "docker:logs": "docker-compose logs -f",
+    "docker:hostinger": "./scripts/docker-hostinger.sh",
+    "docker:hostinger-build": "docker build -f Dockerfile.hostinger -t nextdash-hostinger .",
+    "docker:hostinger-up": "docker-compose -f docker-compose.hostinger.yml up -d",
+    "docker:hostinger-down": "docker-compose -f docker-compose.hostinger.yml down"
   },
   "dependencies": {
     "next": "14.2.5",

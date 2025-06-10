@@ -146,6 +146,268 @@ npm run dev
 - 🌐 Open: http://localhost:3000
 - 🔑 Login with your configured admin credentials
 
+## 🐳 Docker Installation (Alternative)
+
+NextDash-B includes complete Docker support for easy deployment and development.
+
+### **Prerequisites:**
+- Docker & Docker Compose installed
+- Hostinger database credentials
+
+### **Production Deployment with Docker:**
+
+#### **Option 1: Automated Setup (Recommended)**
+```bash
+git clone https://github.com/DBrottlund/nextDash-B.git
+cd nextDash-B
+npm run docker:up
+```
+
+This script will:
+- ✅ Create `.env` file from template
+- ✅ Validate required environment variables
+- ✅ Build Docker images
+- ✅ Start all services (app + Redis + worker)
+- ✅ Set up database automatically
+- ✅ Display access information
+
+#### **Option 2: Manual Docker Setup**
+```bash
+# 1. Copy environment template
+cp .env.docker .env
+
+# 2. Update .env with your Hostinger credentials
+# (Same configuration as shown above)
+
+# 3. Start services
+docker-compose up -d
+
+# 4. Set up database
+docker-compose exec nextdash-app node scripts/setup-env-users.js
+
+# 5. View logs
+docker-compose logs -f
+```
+
+### **Development with Docker:**
+```bash
+# Start development environment (includes MySQL)
+npm run docker:dev
+
+# This provides:
+# - NextDash-B app on http://localhost:3000
+# - Local MySQL database on localhost:3306
+# - Redis on localhost:6379
+# - Hot reload for development
+```
+
+### **Docker Services:**
+
+**Production Stack (`docker-compose.yml`):**
+- **nextdash-app**: Main application (port 3000)
+- **redis**: Caching and job queue
+- **nextdash-worker**: Background job processor
+
+**Development Stack (`docker-compose.dev.yml`):**
+- **nextdash-dev**: Development app with hot reload
+- **mysql**: Local MySQL database
+- **redis**: Local Redis instance
+
+### **Docker Management Commands:**
+```bash
+# View running containers
+docker-compose ps
+
+# View logs
+docker-compose logs -f nextdash-app
+
+# Restart services
+docker-compose restart
+
+# Stop all services
+docker-compose down
+
+# Update and rebuild
+docker-compose build --no-cache
+docker-compose up -d
+
+# Access app container shell
+docker-compose exec nextdash-app sh
+
+# Run database setup inside container
+docker-compose exec nextdash-app node scripts/setup-env-users.js
+```
+
+### **Docker Environment Variables:**
+
+Create `.env` file with these variables:
+```bash
+# Database (Hostinger)
+DB_HOST=srv574.hstgr.io
+DB_NAME=u400736858_nextdashb
+DB_USER=u400736858_nextdashb
+DB_PASSWORD=your_database_password
+
+# JWT Secrets (generate with crypto)
+JWT_SECRET=your-64-char-random-string
+JWT_REFRESH_SECRET=your-64-char-refresh-string
+
+# Admin Users
+ADMIN_EMAIL=admin@example.com
+ADMIN_PASSWORD=secure-password
+ADMIN_FIRST_NAME=Admin
+ADMIN_LAST_NAME=User
+
+# Email Configuration
+SMTP_HOST=mail.smtp2go.com
+SMTP_USER=your-smtp-user
+SMTP_PASSWORD=your-smtp-password
+FROM_EMAIL=noreply@yourdomain.com
+```
+
+### **Docker Health Monitoring:**
+- **Health check endpoint**: `GET /api/health`
+- **Automatic container restarts** on failure
+- **Log aggregation** with Docker Compose
+- **Volume persistence** for uploads and data
+
+### **Production Considerations:**
+- Uses **multi-stage builds** for optimized images
+- **Non-root user** for security
+- **Health checks** for container monitoring
+- **Persistent volumes** for uploads and logs
+- **Network isolation** between services
+- **Automatic restarts** unless stopped
+
+## 🏭 Hostinger Deployment with Docker
+
+For deploying on **Hostinger VPS/Cloud** with external database:
+
+### **Prerequisites:**
+- Hostinger VPS or Cloud hosting
+- Docker installed on server
+- Remote MySQL enabled in Hostinger control panel
+
+### **Quick Hostinger Setup:**
+```bash
+# Clone and deploy in one command
+git clone https://github.com/DBrottlund/nextDash-B.git
+cd nextDash-B
+npm run docker:hostinger
+```
+
+### **What's Different for Hostinger:**
+
+#### **🗄️ External Database Connection:**
+- Uses your **existing Hostinger MySQL database**
+- **No local MySQL container** (connects to `srv###.hstgr.io`)
+- **Database connection testing** before startup
+- **Longer timeouts** for external database connectivity
+
+#### **🚀 Simplified Architecture:**
+- **Single container** deployment (app + worker)
+- **No Redis dependency** (optional caching)
+- **Persistent volumes** for uploads and logs
+- **Health checks** optimized for external database
+
+#### **⚙️ Hostinger Environment (`.env.hostinger`):**
+```bash
+# External Database (your Hostinger database)
+DB_HOST=srv574.hstgr.io                    # Your Hostinger server
+DB_NAME=u400736858_nextdashb               # Your database name  
+DB_USER=u400736858_nextdashb               # Your database user
+DB_PASSWORD=your_actual_database_password  # Your database password
+DB_SSL=false                               # Hostinger doesn't use SSL
+
+# Production URL
+NEXT_PUBLIC_APP_URL=https://yourdomain.com # Your actual domain
+
+# No Redis/Worker containers needed
+WORKER_ENABLED=false                       # Runs in same container
+```
+
+### **Hostinger Deployment Steps:**
+
+1. **Prepare Server:**
+   ```bash
+   # Install Docker on Hostinger VPS
+   curl -fsSL https://get.docker.com -o get-docker.sh
+   sh get-docker.sh
+   
+   # Install Docker Compose
+   sudo curl -L "https://github.com/docker/compose/releases/download/v2.23.0/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+   sudo chmod +x /usr/local/bin/docker-compose
+   ```
+
+2. **Deploy Application:**
+   ```bash
+   git clone https://github.com/DBrottlund/nextDash-B.git
+   cd nextDash-B
+   npm run docker:hostinger
+   ```
+
+3. **Configure Domain:**
+   - Point your domain to the VPS IP
+   - Set up SSL certificate (Let's Encrypt)
+   - Configure reverse proxy (Nginx) if needed
+
+### **Hostinger-Specific Commands:**
+```bash
+# Deploy to Hostinger
+npm run docker:hostinger
+
+# Manual Hostinger setup
+npm run docker:hostinger-up
+
+# View Hostinger logs
+docker-compose -f docker-compose.hostinger.yml logs -f
+
+# Stop Hostinger deployment
+npm run docker:hostinger-down
+
+# Rebuild for Hostinger
+npm run docker:hostinger-build
+```
+
+### **Networking Considerations:**
+
+#### **🔧 Hostinger Database Access:**
+- **Remote MySQL must be enabled** in Hostinger control panel
+- **Server IP must be whitelisted** (or use `%` wildcard)
+- **Connection timeout increased** for external database
+- **Database connectivity tested** before app startup
+
+#### **🌐 Production URLs:**
+- Update `NEXT_PUBLIC_APP_URL` to your actual domain
+- Configure SSL termination (Nginx/Cloudflare)
+- Set up domain DNS to point to your VPS
+
+#### **🔒 Security:**
+- **Firewall rules** for port 3000 (or use reverse proxy)
+- **SSL certificate** for HTTPS
+- **Environment variable security** (no secrets in logs)
+- **Database connection encryption** handled by Hostinger
+
+### **Monitoring & Maintenance:**
+```bash
+# Health check endpoint
+curl https://yourdomain.com/api/health
+
+# Container logs
+docker-compose -f docker-compose.hostinger.yml logs -f nextdash-app
+
+# Database connection test
+docker-compose -f docker-compose.hostinger.yml exec nextdash-app node scripts/test-connection.js
+
+# Restart application
+docker-compose -f docker-compose.hostinger.yml restart
+
+# Update deployment
+git pull origin main
+docker-compose -f docker-compose.hostinger.yml build --no-cache
+docker-compose -f docker-compose.hostinger.yml up -d
+```
+
 ## 🎯 Quick Start
 
 1. Open [http://localhost:3000](http://localhost:3000) in your browser
@@ -159,6 +421,10 @@ npm run dev
 - `npm run test-db` - Test database connection
 - `npm run setup-env` - **Complete database setup with environment users**
 - `npm run diagnose-db` - Troubleshoot database connection issues
+- `npm run docker:up` - **Complete Docker setup with script**
+- `npm run docker:dev` - Development environment with Docker
+- `npm run docker:down` - Stop Docker services
+- `npm run docker:logs` - View Docker logs
 
 ## 📁 Project Structure
 
@@ -215,8 +481,33 @@ npm start
 ```
 
 ### Docker Deployment
+
+**Option 1: Automated Setup Script**
 ```bash
+# Quick setup with script
+npm run docker:up
+```
+
+**Option 2: Manual Docker Compose**
+```bash
+# Copy environment file
+cp .env.docker .env
+
+# Update .env with your configuration
+# Then start services
 docker-compose up -d
+
+# Set up database
+docker-compose exec nextdash-app node scripts/setup-env-users.js
+```
+
+**Option 3: Single Container**
+```bash
+# Build image
+npm run docker:build
+
+# Run container
+npm run docker:run
 ```
 
 ### Hostinger Deployment
