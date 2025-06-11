@@ -10,6 +10,48 @@ export interface UserSettings {
     push: boolean;
     inApp: boolean;
   };
+  transactionNotifications: {
+    accountCreated: {
+      email: boolean;
+      inApp: boolean;
+    };
+    accountUpdated: {
+      email: boolean;
+      inApp: boolean;
+    };
+    accountDeleted: {
+      email: boolean;
+      inApp: boolean;
+    };
+    userLogin: {
+      email: boolean;
+      inApp: boolean;
+    };
+    passwordChanged: {
+      email: boolean;
+      inApp: boolean;
+    };
+    profileUpdated: {
+      email: boolean;
+      inApp: boolean;
+    };
+    roleChanged: {
+      email: boolean;
+      inApp: boolean;
+    };
+    securityAlert: {
+      email: boolean;
+      inApp: boolean;
+    };
+    systemMaintenance: {
+      email: boolean;
+      inApp: boolean;
+    };
+    dataExport: {
+      email: boolean;
+      inApp: boolean;
+    };
+  };
   preferences: {
     language: string;
     timezone: string;
@@ -32,6 +74,48 @@ const defaultSettings: UserSettings = {
     email: true,
     push: true,
     inApp: true,
+  },
+  transactionNotifications: {
+    accountCreated: {
+      email: true,
+      inApp: true,
+    },
+    accountUpdated: {
+      email: false,
+      inApp: true,
+    },
+    accountDeleted: {
+      email: true,
+      inApp: true,
+    },
+    userLogin: {
+      email: false,
+      inApp: false,
+    },
+    passwordChanged: {
+      email: true,
+      inApp: true,
+    },
+    profileUpdated: {
+      email: false,
+      inApp: true,
+    },
+    roleChanged: {
+      email: true,
+      inApp: true,
+    },
+    securityAlert: {
+      email: true,
+      inApp: true,
+    },
+    systemMaintenance: {
+      email: true,
+      inApp: true,
+    },
+    dataExport: {
+      email: true,
+      inApp: true,
+    },
   },
   preferences: {
     language: 'en',
@@ -201,6 +285,12 @@ export function useUserSettings() {
     });
   };
 
+  const updateTransactionNotifications = async (transactionNotifications: Partial<UserSettings['transactionNotifications']>) => {
+    return await saveSettings({
+      transactionNotifications: { ...settings.transactionNotifications, ...transactionNotifications }
+    });
+  };
+
   // Getter functions for easy access
   const isGuestMode = !isAuthenticated;
   const storageType = isAuthenticated ? 'database' : 'localStorage';
@@ -215,6 +305,7 @@ export function useUserSettings() {
     saveSettings,
     resetSettings,
     updateNotificationSettings,
+    updateTransactionNotifications,
     updatePreferences,
     updateUISettings,
     updatePrivacySettings,

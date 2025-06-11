@@ -40,6 +40,14 @@ export async function GET(
     const authResult = await authenticateRequest(request, { resource: 'users', action: 'read' });
     if (authResult.error) return authResult.error;
 
+    // Additional check: Only Manager (role_id <= 2) and above can view user details
+    if (!permissions.isManagerOrAbove(authResult.user!)) {
+      return NextResponse.json(
+        { success: false, message: 'Access denied. Manager role or higher required.' },
+        { status: HTTP_STATUS.FORBIDDEN }
+      );
+    }
+
     const userId = parseInt(params.id);
     if (isNaN(userId)) {
       return NextResponse.json(
@@ -96,6 +104,14 @@ export async function PUT(
     const authResult = await authenticateRequest(request, { resource: 'users', action: 'update' });
     if (authResult.error) return authResult.error;
 
+    // Additional check: Only Manager (role_id <= 2) and above can update users
+    if (!permissions.isManagerOrAbove(authResult.user!)) {
+      return NextResponse.json(
+        { success: false, message: 'Access denied. Manager role or higher required.' },
+        { status: HTTP_STATUS.FORBIDDEN }
+      );
+    }
+
     const userId = parseInt(params.id);
     if (isNaN(userId)) {
       return NextResponse.json(
@@ -114,8 +130,8 @@ export async function PUT(
       );
     }
 
-    // Check if user exists
-    const existingUser = await db.queryOne('SELECT id FROM users WHERE id = ?', [userId]);
+    // Check if user exists and get their role for permission check
+    const existingUser = await db.queryOne('SELECT id, role_id FROM users WHERE id = ?', [userId]);
     if (!existingUser) {
       return NextResponse.json(
         { success: false, message: 'User not found' },
@@ -123,7 +139,27 @@ export async function PUT(
       );
     }
 
+    // Role hierarchy check: Cannot update users with higher permissions
+    if (existingUser.role_id < authResult.user!.roleId) {
+      return NextResponse.json(
+        { success: false, message: 'You cannot update users with higher permissions than your own role.' },
+        { status: HTTP_STATUS.FORBIDDEN }
+      );
+    }
+
     const updateData = validation.data!;
+
+    // If roleId is being updated, check role hierarchy
+    if (updateData.roleId !== undefined) {
+      // Target role must have equal or lower permissions (higher or equal role_id)
+      if (updateData.roleId < authResult.user!.roleId) {
+        return NextResponse.json(
+          { success: false, message: 'You cannot assign roles with higher permissions than your own role.' },
+          { status: HTTP_STATUS.FORBIDDEN }
+        );
+      }
+    }
+
     const updateFields: string[] = [];
     const updateValues: any[] = [];
 
@@ -208,6 +244,14 @@ export async function DELETE(
     
     const currentUser = authResult.user!;
 
+    // Additional check: Only Admin (role_id = 1) can delete users
+    if (!permissions.isAdmin(currentUser)) {
+      return NextResponse.json(
+        { success: false, message: 'Access denied. Admin role required for user deletion.' },
+        { status: HTTP_STATUS.FORBIDDEN }
+      );
+    }
+
     const userId = parseInt(params.id);
     if (isNaN(userId)) {
       return NextResponse.json(
@@ -224,12 +268,20 @@ export async function DELETE(
       );
     }
 
-    // Check if user exists
-    const userToDelete = await db.queryOne('SELECT id, email FROM users WHERE id = ?', [userId]);
+    // Check if user exists and get their role for permission check
+    const userToDelete = await db.queryOne('SELECT id, email, role_id FROM users WHERE id = ?', [userId]);
     if (!userToDelete) {
       return NextResponse.json(
         { success: false, message: 'User not found' },
         { status: HTTP_STATUS.NOT_FOUND }
+      );
+    }
+
+    // Role hierarchy check: Cannot delete users with higher permissions
+    if (userToDelete.role_id < currentUser.roleId) {
+      return NextResponse.json(
+        { success: false, message: 'You cannot delete users with higher permissions than your own role.' },
+        { status: HTTP_STATUS.FORBIDDEN }
       );
     }
 

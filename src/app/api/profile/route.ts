@@ -32,12 +32,9 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Remove sensitive data
-    const { passwordHash, ...safeUser } = user;
-
     return NextResponse.json({
       success: true,
-      data: safeUser,
+      data: user,
     });
 
   } catch (error) {
@@ -106,13 +103,10 @@ export async function PUT(request: NextRequest) {
       );
     }
 
-    // Remove sensitive data
-    const { passwordHash, ...safeUser } = updatedUser;
-
     return NextResponse.json({
       success: true,
       message: 'Profile updated successfully',
-      data: safeUser,
+      data: updatedUser,
     });
 
   } catch (error) {

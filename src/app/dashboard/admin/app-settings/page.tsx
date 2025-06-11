@@ -29,7 +29,8 @@ import {
   GlobalOutlined,
   SettingOutlined,
   UploadOutlined,
-  EyeOutlined
+  EyeOutlined,
+  TransactionOutlined
 } from '@ant-design/icons';
 import ProtectedRoute from '@/components/auth/ProtectedRoute';
 import { useTheme } from '@/contexts/ThemeContext';
@@ -60,6 +61,21 @@ interface AdminSettings {
   // Front Page
   front_page_mode: string;
   front_page_html: string;
+
+  // Transaction Notifications
+  transaction_notifications_enabled: boolean;
+  transaction_notifications: {
+    accountCreated: { email: boolean; inApp: boolean; };
+    accountUpdated: { email: boolean; inApp: boolean; };
+    accountDeleted: { email: boolean; inApp: boolean; };
+    userLogin: { email: boolean; inApp: boolean; };
+    passwordChanged: { email: boolean; inApp: boolean; };
+    profileUpdated: { email: boolean; inApp: boolean; };
+    roleChanged: { email: boolean; inApp: boolean; };
+    securityAlert: { email: boolean; inApp: boolean; };
+    systemMaintenance: { email: boolean; inApp: boolean; };
+    dataExport: { email: boolean; inApp: boolean; };
+  };
 
   // Security
   session_timeout: number;
@@ -408,6 +424,223 @@ export default function AppSettingsPage() {
                 ) : null
               }
             </Form.Item>
+          </Col>
+        </Row>
+      ),
+    },
+    {
+      key: 'notifications',
+      label: (
+        <Space>
+          <TransactionOutlined />
+          Transaction Notifications
+        </Space>
+      ),
+      children: (
+        <Row gutter={24}>
+          <Col span={24}>
+            <Form.Item
+              name="transaction_notifications_enabled"
+              label="Enable Transaction Notifications"
+              valuePropName="checked"
+              extra="Master switch to enable/disable all transaction notifications app-wide"
+            >
+              <Switch />
+            </Form.Item>
+            
+            <div style={{ marginTop: 24 }}>
+              <Title level={4}>Configure Transaction Types</Title>
+              <Text type="secondary" style={{ display: 'block', marginBottom: 16 }}>
+                Enable or disable specific notification types app-wide. Users can only receive notifications for types that are enabled here.
+              </Text>
+              
+              <div style={{ display: 'grid', gap: '24px' }}>
+                {/* Account Events */}
+                <div>
+                  <Title level={5} style={{ color: '#1890ff', marginBottom: 16 }}>Account Events</Title>
+                  
+                  <Row gutter={[16, 12]}>
+                    <Col span={8}>
+                      <strong>Account Created</strong>
+                      <div style={{ fontSize: '12px', color: '#666' }}>When new accounts are created</div>
+                    </Col>
+                    <Col span={8}>
+                      <Form.Item name={['transaction_notifications', 'accountCreated', 'email']} valuePropName="checked" style={{ margin: 0 }}>
+                        <Switch size="small" /> Enable Email
+                      </Form.Item>
+                    </Col>
+                    <Col span={8}>
+                      <Form.Item name={['transaction_notifications', 'accountCreated', 'inApp']} valuePropName="checked" style={{ margin: 0 }}>
+                        <Switch size="small" /> Enable In-App
+                      </Form.Item>
+                    </Col>
+                  </Row>
+
+                  <Row gutter={[16, 12]}>
+                    <Col span={8}>
+                      <strong>Account Updated</strong>
+                      <div style={{ fontSize: '12px', color: '#666' }}>When account information is modified</div>
+                    </Col>
+                    <Col span={8}>
+                      <Form.Item name={['transaction_notifications', 'accountUpdated', 'email']} valuePropName="checked" style={{ margin: 0 }}>
+                        <Switch size="small" /> Enable Email
+                      </Form.Item>
+                    </Col>
+                    <Col span={8}>
+                      <Form.Item name={['transaction_notifications', 'accountUpdated', 'inApp']} valuePropName="checked" style={{ margin: 0 }}>
+                        <Switch size="small" /> Enable In-App
+                      </Form.Item>
+                    </Col>
+                  </Row>
+
+                  <Row gutter={[16, 12]}>
+                    <Col span={8}>
+                      <strong>Account Deleted</strong>
+                      <div style={{ fontSize: '12px', color: '#666' }}>When accounts are removed</div>
+                    </Col>
+                    <Col span={8}>
+                      <Form.Item name={['transaction_notifications', 'accountDeleted', 'email']} valuePropName="checked" style={{ margin: 0 }}>
+                        <Switch size="small" /> Enable Email
+                      </Form.Item>
+                    </Col>
+                    <Col span={8}>
+                      <Form.Item name={['transaction_notifications', 'accountDeleted', 'inApp']} valuePropName="checked" style={{ margin: 0 }}>
+                        <Switch size="small" /> Enable In-App
+                      </Form.Item>
+                    </Col>
+                  </Row>
+                </div>
+
+                {/* Security Events */}
+                <div>
+                  <Title level={5} style={{ color: '#1890ff', marginBottom: 16 }}>Security Events</Title>
+                  
+                  <Row gutter={[16, 12]}>
+                    <Col span={8}>
+                      <strong>User Login</strong>
+                      <div style={{ fontSize: '12px', color: '#666' }}>When users log into accounts</div>
+                    </Col>
+                    <Col span={8}>
+                      <Form.Item name={['transaction_notifications', 'userLogin', 'email']} valuePropName="checked" style={{ margin: 0 }}>
+                        <Switch size="small" /> Enable Email
+                      </Form.Item>
+                    </Col>
+                    <Col span={8}>
+                      <Form.Item name={['transaction_notifications', 'userLogin', 'inApp']} valuePropName="checked" style={{ margin: 0 }}>
+                        <Switch size="small" /> Enable In-App
+                      </Form.Item>
+                    </Col>
+                  </Row>
+
+                  <Row gutter={[16, 12]}>
+                    <Col span={8}>
+                      <strong>Password Changed</strong>
+                      <div style={{ fontSize: '12px', color: '#666' }}>When passwords are updated</div>
+                    </Col>
+                    <Col span={8}>
+                      <Form.Item name={['transaction_notifications', 'passwordChanged', 'email']} valuePropName="checked" style={{ margin: 0 }}>
+                        <Switch size="small" /> Enable Email
+                      </Form.Item>
+                    </Col>
+                    <Col span={8}>
+                      <Form.Item name={['transaction_notifications', 'passwordChanged', 'inApp']} valuePropName="checked" style={{ margin: 0 }}>
+                        <Switch size="small" /> Enable In-App
+                      </Form.Item>
+                    </Col>
+                  </Row>
+
+                  <Row gutter={[16, 12]}>
+                    <Col span={8}>
+                      <strong>Security Alert</strong>
+                      <div style={{ fontSize: '12px', color: '#666' }}>Important security warnings</div>
+                    </Col>
+                    <Col span={8}>
+                      <Form.Item name={['transaction_notifications', 'securityAlert', 'email']} valuePropName="checked" style={{ margin: 0 }}>
+                        <Switch size="small" /> Enable Email
+                      </Form.Item>
+                    </Col>
+                    <Col span={8}>
+                      <Form.Item name={['transaction_notifications', 'securityAlert', 'inApp']} valuePropName="checked" style={{ margin: 0 }}>
+                        <Switch size="small" /> Enable In-App
+                      </Form.Item>
+                    </Col>
+                  </Row>
+                </div>
+
+                {/* System Events */}
+                <div>
+                  <Title level={5} style={{ color: '#1890ff', marginBottom: 16 }}>System Events</Title>
+                  
+                  <Row gutter={[16, 12]}>
+                    <Col span={8}>
+                      <strong>Profile Updated</strong>
+                      <div style={{ fontSize: '12px', color: '#666' }}>When user profiles change</div>
+                    </Col>
+                    <Col span={8}>
+                      <Form.Item name={['transaction_notifications', 'profileUpdated', 'email']} valuePropName="checked" style={{ margin: 0 }}>
+                        <Switch size="small" /> Enable Email
+                      </Form.Item>
+                    </Col>
+                    <Col span={8}>
+                      <Form.Item name={['transaction_notifications', 'profileUpdated', 'inApp']} valuePropName="checked" style={{ margin: 0 }}>
+                        <Switch size="small" /> Enable In-App
+                      </Form.Item>
+                    </Col>
+                  </Row>
+
+                  <Row gutter={[16, 12]}>
+                    <Col span={8}>
+                      <strong>Role Changed</strong>
+                      <div style={{ fontSize: '12px', color: '#666' }}>When user permissions are modified</div>
+                    </Col>
+                    <Col span={8}>
+                      <Form.Item name={['transaction_notifications', 'roleChanged', 'email']} valuePropName="checked" style={{ margin: 0 }}>
+                        <Switch size="small" /> Enable Email
+                      </Form.Item>
+                    </Col>
+                    <Col span={8}>
+                      <Form.Item name={['transaction_notifications', 'roleChanged', 'inApp']} valuePropName="checked" style={{ margin: 0 }}>
+                        <Switch size="small" /> Enable In-App
+                      </Form.Item>
+                    </Col>
+                  </Row>
+
+                  <Row gutter={[16, 12]}>
+                    <Col span={8}>
+                      <strong>System Maintenance</strong>
+                      <div style={{ fontSize: '12px', color: '#666' }}>Scheduled downtime and updates</div>
+                    </Col>
+                    <Col span={8}>
+                      <Form.Item name={['transaction_notifications', 'systemMaintenance', 'email']} valuePropName="checked" style={{ margin: 0 }}>
+                        <Switch size="small" /> Enable Email
+                      </Form.Item>
+                    </Col>
+                    <Col span={8}>
+                      <Form.Item name={['transaction_notifications', 'systemMaintenance', 'inApp']} valuePropName="checked" style={{ margin: 0 }}>
+                        <Switch size="small" /> Enable In-App
+                      </Form.Item>
+                    </Col>
+                  </Row>
+
+                  <Row gutter={[16, 12]}>
+                    <Col span={8}>
+                      <strong>Data Export</strong>
+                      <div style={{ fontSize: '12px', color: '#666' }}>When data exports are completed</div>
+                    </Col>
+                    <Col span={8}>
+                      <Form.Item name={['transaction_notifications', 'dataExport', 'email']} valuePropName="checked" style={{ margin: 0 }}>
+                        <Switch size="small" /> Enable Email
+                      </Form.Item>
+                    </Col>
+                    <Col span={8}>
+                      <Form.Item name={['transaction_notifications', 'dataExport', 'inApp']} valuePropName="checked" style={{ margin: 0 }}>
+                        <Switch size="small" /> Enable In-App
+                      </Form.Item>
+                    </Col>
+                  </Row>
+                </div>
+              </div>
+            </div>
           </Col>
         </Row>
       ),

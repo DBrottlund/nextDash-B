@@ -75,8 +75,13 @@ export default function UsersPage() {
 
   useEffect(() => {
     fetchUsers();
-    fetchRoles();
   }, [pagination.current, pagination.pageSize, searchText, roleFilter]);
+
+  useEffect(() => {
+    if (currentUser) {
+      fetchRoles();
+    }
+  }, [currentUser]);
 
   const fetchUsers = async () => {
     setLoading(true);
@@ -124,7 +129,12 @@ export default function UsersPage() {
 
       const data = await response.json();
       if (data.success) {
-        setRoles(data.data);
+        // Filter roles based on current user's permissions
+        // Users can only assign roles with equal or lower permissions (higher or equal role_id)
+        const allowedRoles = data.data.filter((role: Role) => 
+          role.id >= (currentUser?.roleId || 999)
+        );
+        setRoles(allowedRoles);
       }
     } catch (error) {
       console.error('Failed to fetch roles:', error);
@@ -326,67 +336,80 @@ export default function UsersPage() {
     {
       title: 'Actions',
       key: 'actions',
-      render: (record: User) => (
-        <Space>
-          <Button
-            type="primary"
-            size="small"
-            icon={<EditOutlined />}
-            onClick={() => handleEditUser(record)}
-          >
-            Edit
-          </Button>
-          
-          {!record.isApproved ? (
-            <Button
-              type="primary"
-              size="small"
-              icon={<CheckOutlined />}
-              style={{ backgroundColor: '#52c41a', borderColor: '#52c41a' }}
-              onClick={() => handleApproveUser(record.id)}
-            >
-              Approve
-            </Button>
-          ) : (
-            <Popconfirm
-              title="Are you sure you want to revoke approval for this user?"
-              onConfirm={() => handleRevokeApproval(record.id)}
-              disabled={record.id === currentUser?.id}
-            >
+      render: (record: User) => {
+        // Check if current user can manage this user (target user must have equal or lower permissions)
+        const canManageUser = currentUser && record.roleId >= currentUser.roleId;
+        // Only Admin can delete users
+        const canDeleteUser = currentUser?.roleId === 1 && canManageUser;
+        
+        return (
+          <Space>
+            {canManageUser && (
               <Button
                 type="primary"
                 size="small"
-                icon={<CloseOutlined />}
-                style={{ backgroundColor: '#faad14', borderColor: '#faad14' }}
+                icon={<EditOutlined />}
+                onClick={() => handleEditUser(record)}
+              >
+                Edit
+              </Button>
+            )}
+            
+            {canManageUser && !record.isApproved && (
+              <Button
+                type="primary"
+                size="small"
+                icon={<CheckOutlined />}
+                style={{ backgroundColor: '#52c41a', borderColor: '#52c41a' }}
+                onClick={() => handleApproveUser(record.id)}
+              >
+                Approve
+              </Button>
+            )}
+            
+            {canManageUser && record.isApproved && (
+              <Popconfirm
+                title="Are you sure you want to revoke approval for this user?"
+                onConfirm={() => handleRevokeApproval(record.id)}
                 disabled={record.id === currentUser?.id}
               >
-                Revoke
-              </Button>
-            </Popconfirm>
-          )}
-          
-          <Popconfirm
-            title="Are you sure you want to delete this user?"
-            onConfirm={() => handleDeleteUser(record.id)}
-            disabled={record.id === currentUser?.id}
-          >
-            <Button
-              type="primary"
-              danger
-              size="small"
-              icon={<DeleteOutlined />}
-              disabled={record.id === currentUser?.id}
-            >
-              Delete
-            </Button>
-          </Popconfirm>
-        </Space>
-      ),
+                <Button
+                  type="primary"
+                  size="small"
+                  icon={<CloseOutlined />}
+                  style={{ backgroundColor: '#faad14', borderColor: '#faad14' }}
+                  disabled={record.id === currentUser?.id}
+                >
+                  Revoke
+                </Button>
+              </Popconfirm>
+            )}
+            
+            {canDeleteUser && (
+              <Popconfirm
+                title="Are you sure you want to delete this user?"
+                onConfirm={() => handleDeleteUser(record.id)}
+                disabled={record.id === currentUser?.id}
+              >
+                <Button
+                  type="primary"
+                  danger
+                  size="small"
+                  icon={<DeleteOutlined />}
+                  disabled={record.id === currentUser?.id}
+                >
+                  Delete
+                </Button>
+              </Popconfirm>
+            )}
+          </Space>
+        );
+      },
     },
   ];
 
   return (
-    <ProtectedRoute requirePermission={{ resource: 'users', action: 'read' }}>
+    <ProtectedRoute requireRole={2}>
       <div className="p-6">
         <Card>
           <Row justify="space-between" align="middle" className="mb-4">

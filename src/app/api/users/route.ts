@@ -4,6 +4,8 @@ import { db } from '@/lib/db';
 import { createUserSchema, userFiltersSchema, validateSchema } from '@/lib/validation';
 import { HTTP_STATUS } from '@/lib/constants';
 import { permissions } from '@/lib/permissions';
+import { emailService } from '@/lib/email';
+import { transactionNotificationService } from '@/lib/notifications';
 
 // Helper to authenticate and authorize requests
 async function authenticateRequest(request: NextRequest, requiredPermission: { resource: string; action: string }) {
@@ -36,6 +38,14 @@ export async function GET(request: NextRequest) {
   try {
     const authResult = await authenticateRequest(request, { resource: 'users', action: 'read' });
     if (authResult.error) return authResult.error;
+
+    // Additional check: Only Manager (role_id <= 2) and above can access users list
+    if (!permissions.isManagerOrAbove(authResult.user!)) {
+      return NextResponse.json(
+        { success: false, message: 'Access denied. Manager role or higher required.' },
+        { status: HTTP_STATUS.FORBIDDEN }
+      );
+    }
 
     const { searchParams } = new URL(request.url);
     const filters = {
@@ -133,6 +143,14 @@ export async function POST(request: NextRequest) {
     const authResult = await authenticateRequest(request, { resource: 'users', action: 'create' });
     if (authResult.error) return authResult.error;
 
+    // Additional check: Only Manager (role_id <= 2) and above can create users
+    if (!permissions.isManagerOrAbove(authResult.user!)) {
+      return NextResponse.json(
+        { success: false, message: 'Access denied. Manager role or higher required.' },
+        { status: HTTP_STATUS.FORBIDDEN }
+      );
+    }
+
     const body = await request.json();
     const validation = validateSchema(createUserSchema, body);
     
@@ -144,6 +162,15 @@ export async function POST(request: NextRequest) {
     }
 
     const { email, password, firstName, lastName, roleId } = validation.data!;
+
+    // Role hierarchy check: Users can only create users with equal or lower permissions
+    // Lower role_id = higher permissions, so target roleId must be >= current user's roleId
+    if (roleId < authResult.user!.roleId) {
+      return NextResponse.json(
+        { success: false, message: 'You cannot create users with higher permissions than your own role.' },
+        { status: HTTP_STATUS.FORBIDDEN }
+      );
+    }
 
     // Check if user already exists
     const existingUser = await auth.getUserByEmail(email);
@@ -176,6 +203,32 @@ export async function POST(request: NextRequest) {
       WHERE u.id = ?`,
       [result.insertId]
     );
+
+    // Send welcome email and transaction notification (don't block response if they fail)
+    if (newUser) {
+      emailService.sendWelcomeEmail({
+        email: newUser.email,
+        firstName: newUser.firstName,
+        lastName: newUser.lastName,
+      }).catch(error => {
+        console.error('Failed to send welcome email:', error);
+      });
+
+      // Send account created transaction notification
+      transactionNotificationService.sendTransactionNotification({
+        userId: newUser.id,
+        transactionType: 'accountCreated',
+        title: 'Welcome to NextDash-B!',
+        message: `Your account has been successfully created. Welcome to NextDash-B, ${newUser.firstName}!`,
+        data: {
+          userId: newUser.id,
+          email: newUser.email,
+          roleName: newUser.roleName,
+        },
+      }).catch(error => {
+        console.error('Failed to send account created notification:', error);
+      });
+    }
 
     return NextResponse.json({
       success: true,

@@ -24,7 +24,8 @@ import {
   BellOutlined,
   GlobalOutlined,
   EyeOutlined,
-  UserOutlined
+  UserOutlined,
+  TransactionOutlined
 } from '@ant-design/icons';
 import ProtectedRoute from '@/components/auth/ProtectedRoute';
 import { useUserSettings } from '@/hooks/useUserSettings';
@@ -107,6 +108,212 @@ export default function SettingsPage() {
               >
                 <Switch />
               </Form.Item>
+            </Card>
+          </Col>
+        </Row>
+      ),
+    },
+    {
+      key: 'transactions',
+      label: (
+        <span>
+          <TransactionOutlined /> Transaction Alerts
+        </span>
+      ),
+      children: (
+        <Row gutter={24}>
+          <Col span={24}>
+            <Card title="Transaction Notification Settings" size="small">
+              <p style={{ marginBottom: 16, color: '#666' }}>
+                Configure which transaction events trigger notifications. You can choose to receive notifications via email and/or in-app alerts.
+              </p>
+              
+              <div style={{ display: 'grid', gap: '16px' }}>
+                {/* Account Events */}
+                <div>
+                  <h4 style={{ margin: '0 0 12px 0', color: '#1890ff' }}>Account Events</h4>
+                  
+                  <Row gutter={[16, 8]} style={{ marginBottom: 12 }}>
+                    <Col span={12}>
+                      <strong>Account Created</strong>
+                      <div style={{ fontSize: '12px', color: '#666' }}>When a new account is created</div>
+                    </Col>
+                    <Col span={6}>
+                      <Form.Item name={['transactionNotifications', 'accountCreated', 'email']} valuePropName="checked" style={{ margin: 0 }}>
+                        <Switch size="small" /> Email
+                      </Form.Item>
+                    </Col>
+                    <Col span={6}>
+                      <Form.Item name={['transactionNotifications', 'accountCreated', 'inApp']} valuePropName="checked" style={{ margin: 0 }}>
+                        <Switch size="small" /> In-App
+                      </Form.Item>
+                    </Col>
+                  </Row>
+
+                  <Row gutter={[16, 8]} style={{ marginBottom: 12 }}>
+                    <Col span={12}>
+                      <strong>Account Updated</strong>
+                      <div style={{ fontSize: '12px', color: '#666' }}>When account information is modified</div>
+                    </Col>
+                    <Col span={6}>
+                      <Form.Item name={['transactionNotifications', 'accountUpdated', 'email']} valuePropName="checked" style={{ margin: 0 }}>
+                        <Switch size="small" /> Email
+                      </Form.Item>
+                    </Col>
+                    <Col span={6}>
+                      <Form.Item name={['transactionNotifications', 'accountUpdated', 'inApp']} valuePropName="checked" style={{ margin: 0 }}>
+                        <Switch size="small" /> In-App
+                      </Form.Item>
+                    </Col>
+                  </Row>
+
+                  <Row gutter={[16, 8]} style={{ marginBottom: 12 }}>
+                    <Col span={12}>
+                      <strong>Account Deleted</strong>
+                      <div style={{ fontSize: '12px', color: '#666' }}>When an account is removed</div>
+                    </Col>
+                    <Col span={6}>
+                      <Form.Item name={['transactionNotifications', 'accountDeleted', 'email']} valuePropName="checked" style={{ margin: 0 }}>
+                        <Switch size="small" /> Email
+                      </Form.Item>
+                    </Col>
+                    <Col span={6}>
+                      <Form.Item name={['transactionNotifications', 'accountDeleted', 'inApp']} valuePropName="checked" style={{ margin: 0 }}>
+                        <Switch size="small" /> In-App
+                      </Form.Item>
+                    </Col>
+                  </Row>
+                </div>
+
+                {/* Security Events */}
+                <div>
+                  <h4 style={{ margin: '0 0 12px 0', color: '#1890ff' }}>Security Events</h4>
+                  
+                  <Row gutter={[16, 8]} style={{ marginBottom: 12 }}>
+                    <Col span={12}>
+                      <strong>User Login</strong>
+                      <div style={{ fontSize: '12px', color: '#666' }}>When someone logs into your account</div>
+                    </Col>
+                    <Col span={6}>
+                      <Form.Item name={['transactionNotifications', 'userLogin', 'email']} valuePropName="checked" style={{ margin: 0 }}>
+                        <Switch size="small" /> Email
+                      </Form.Item>
+                    </Col>
+                    <Col span={6}>
+                      <Form.Item name={['transactionNotifications', 'userLogin', 'inApp']} valuePropName="checked" style={{ margin: 0 }}>
+                        <Switch size="small" /> In-App
+                      </Form.Item>
+                    </Col>
+                  </Row>
+
+                  <Row gutter={[16, 8]} style={{ marginBottom: 12 }}>
+                    <Col span={12}>
+                      <strong>Password Changed</strong>
+                      <div style={{ fontSize: '12px', color: '#666' }}>When your password is updated</div>
+                    </Col>
+                    <Col span={6}>
+                      <Form.Item name={['transactionNotifications', 'passwordChanged', 'email']} valuePropName="checked" style={{ margin: 0 }}>
+                        <Switch size="small" /> Email
+                      </Form.Item>
+                    </Col>
+                    <Col span={6}>
+                      <Form.Item name={['transactionNotifications', 'passwordChanged', 'inApp']} valuePropName="checked" style={{ margin: 0 }}>
+                        <Switch size="small" /> In-App
+                      </Form.Item>
+                    </Col>
+                  </Row>
+
+                  <Row gutter={[16, 8]} style={{ marginBottom: 12 }}>
+                    <Col span={12}>
+                      <strong>Security Alert</strong>
+                      <div style={{ fontSize: '12px', color: '#666' }}>Important security warnings</div>
+                    </Col>
+                    <Col span={6}>
+                      <Form.Item name={['transactionNotifications', 'securityAlert', 'email']} valuePropName="checked" style={{ margin: 0 }}>
+                        <Switch size="small" /> Email
+                      </Form.Item>
+                    </Col>
+                    <Col span={6}>
+                      <Form.Item name={['transactionNotifications', 'securityAlert', 'inApp']} valuePropName="checked" style={{ margin: 0 }}>
+                        <Switch size="small" /> In-App
+                      </Form.Item>
+                    </Col>
+                  </Row>
+                </div>
+
+                {/* Profile & System Events */}
+                <div>
+                  <h4 style={{ margin: '0 0 12px 0', color: '#1890ff' }}>Profile & System Events</h4>
+                  
+                  <Row gutter={[16, 8]} style={{ marginBottom: 12 }}>
+                    <Col span={12}>
+                      <strong>Profile Updated</strong>
+                      <div style={{ fontSize: '12px', color: '#666' }}>When profile information changes</div>
+                    </Col>
+                    <Col span={6}>
+                      <Form.Item name={['transactionNotifications', 'profileUpdated', 'email']} valuePropName="checked" style={{ margin: 0 }}>
+                        <Switch size="small" /> Email
+                      </Form.Item>
+                    </Col>
+                    <Col span={6}>
+                      <Form.Item name={['transactionNotifications', 'profileUpdated', 'inApp']} valuePropName="checked" style={{ margin: 0 }}>
+                        <Switch size="small" /> In-App
+                      </Form.Item>
+                    </Col>
+                  </Row>
+
+                  <Row gutter={[16, 8]} style={{ marginBottom: 12 }}>
+                    <Col span={12}>
+                      <strong>Role Changed</strong>
+                      <div style={{ fontSize: '12px', color: '#666' }}>When user permissions are modified</div>
+                    </Col>
+                    <Col span={6}>
+                      <Form.Item name={['transactionNotifications', 'roleChanged', 'email']} valuePropName="checked" style={{ margin: 0 }}>
+                        <Switch size="small" /> Email
+                      </Form.Item>
+                    </Col>
+                    <Col span={6}>
+                      <Form.Item name={['transactionNotifications', 'roleChanged', 'inApp']} valuePropName="checked" style={{ margin: 0 }}>
+                        <Switch size="small" /> In-App
+                      </Form.Item>
+                    </Col>
+                  </Row>
+
+                  <Row gutter={[16, 8]} style={{ marginBottom: 12 }}>
+                    <Col span={12}>
+                      <strong>System Maintenance</strong>
+                      <div style={{ fontSize: '12px', color: '#666' }}>Scheduled downtime and updates</div>
+                    </Col>
+                    <Col span={6}>
+                      <Form.Item name={['transactionNotifications', 'systemMaintenance', 'email']} valuePropName="checked" style={{ margin: 0 }}>
+                        <Switch size="small" /> Email
+                      </Form.Item>
+                    </Col>
+                    <Col span={6}>
+                      <Form.Item name={['transactionNotifications', 'systemMaintenance', 'inApp']} valuePropName="checked" style={{ margin: 0 }}>
+                        <Switch size="small" /> In-App
+                      </Form.Item>
+                    </Col>
+                  </Row>
+
+                  <Row gutter={[16, 8]} style={{ marginBottom: 12 }}>
+                    <Col span={12}>
+                      <strong>Data Export</strong>
+                      <div style={{ fontSize: '12px', color: '#666' }}>When data exports are completed</div>
+                    </Col>
+                    <Col span={6}>
+                      <Form.Item name={['transactionNotifications', 'dataExport', 'email']} valuePropName="checked" style={{ margin: 0 }}>
+                        <Switch size="small" /> Email
+                      </Form.Item>
+                    </Col>
+                    <Col span={6}>
+                      <Form.Item name={['transactionNotifications', 'dataExport', 'inApp']} valuePropName="checked" style={{ margin: 0 }}>
+                        <Switch size="small" /> In-App
+                      </Form.Item>
+                    </Col>
+                  </Row>
+                </div>
+              </div>
             </Card>
           </Col>
         </Row>
