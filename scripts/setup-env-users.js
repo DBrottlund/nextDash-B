@@ -50,15 +50,19 @@ async function setupWithEnvUsers() {
         role_id INT NOT NULL DEFAULT 4,
         first_name VARCHAR(100),
         last_name VARCHAR(100),
-        avatar_url VARCHAR(500),
+        avatar_url TEXT,
         is_active BOOLEAN DEFAULT TRUE,
         email_verified BOOLEAN DEFAULT FALSE,
+        is_approved BOOLEAN DEFAULT FALSE,
+        approved_by INT NULL,
+        approved_at TIMESTAMP NULL,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
         last_login TIMESTAMP NULL,
         INDEX idx_email (email),
         INDEX idx_role (role_id),
-        INDEX idx_active (is_active)
+        INDEX idx_active (is_active),
+        INDEX idx_approved (is_approved)
       )`,
 
       // 3. User sessions table (references users)
@@ -117,6 +121,43 @@ async function setupWithEnvUsers() {
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
         INDEX idx_fingerprint (fingerprint),
         INDEX idx_expires (expires_at)
+      )`,
+
+      // 7. Admin settings table (no dependencies)
+      `CREATE TABLE IF NOT EXISTS admin_settings (
+        id INT PRIMARY KEY AUTO_INCREMENT,
+        setting_key VARCHAR(100) UNIQUE NOT NULL,
+        setting_value TEXT,
+        description TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        INDEX idx_key (setting_key)
+      )`,
+
+      // 8. Password reset tokens table (references users)
+      `CREATE TABLE IF NOT EXISTS password_reset_tokens (
+        id INT PRIMARY KEY AUTO_INCREMENT,
+        user_id INT NOT NULL,
+        token VARCHAR(255) NOT NULL,
+        expires_at TIMESTAMP NOT NULL,
+        used BOOLEAN DEFAULT FALSE,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        INDEX idx_token (token),
+        INDEX idx_user_id (user_id),
+        INDEX idx_expires (expires_at)
+      )`,
+
+      // 9. Email verification tokens table (references users)
+      `CREATE TABLE IF NOT EXISTS email_verification_tokens (
+        id INT PRIMARY KEY AUTO_INCREMENT,
+        user_id INT NOT NULL,
+        token VARCHAR(255) NOT NULL,
+        expires_at TIMESTAMP NOT NULL,
+        used BOOLEAN DEFAULT FALSE,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        INDEX idx_token (token),
+        INDEX idx_user_id (user_id),
+        INDEX idx_expires (expires_at)
       )`
     ];
 
@@ -134,10 +175,10 @@ async function setupWithEnvUsers() {
     // Insert roles
     console.log('👥 Adding roles...');
     const roleInserts = [
-      "INSERT IGNORE INTO roles (id, name, description, permissions) VALUES (1, 'Admin', 'Full system access', '{\"users\": [\"create\", \"read\", \"update\", \"delete\"], \"roles\": [\"create\", \"read\", \"update\", \"delete\"], \"settings\": [\"read\", \"update\"], \"admin\": [\"access\"], \"dashboard\": [\"read\"]}')",
-      "INSERT IGNORE INTO roles (id, name, description, permissions) VALUES (2, 'Manager', 'Management access', '{\"users\": [\"create\", \"read\", \"update\"], \"roles\": [\"read\"], \"settings\": [\"read\"], \"dashboard\": [\"read\"]}')",
-      "INSERT IGNORE INTO roles (id, name, description, permissions) VALUES (3, 'User', 'Standard access', '{\"users\": [\"read\"], \"dashboard\": [\"read\"], \"settings\": [\"read\"]}')",
-      "INSERT IGNORE INTO roles (id, name, description, permissions) VALUES (4, 'Guest', 'Limited access', '{\"dashboard\": [\"read\"]}')"
+      "INSERT IGNORE INTO roles (id, name, description, permissions) VALUES (1, 'Admin', 'Full system access with admin panel', '{\"users\": {\"create\": true, \"read\": true, \"update\": true, \"delete\": true}, \"roles\": {\"create\": true, \"read\": true, \"update\": true, \"delete\": true}, \"settings\": {\"read\": true, \"update\": true}, \"admin\": {\"access\": true}, \"dashboard\": {\"access\": true}}')",
+      "INSERT IGNORE INTO roles (id, name, description, permissions) VALUES (2, 'Manager', 'Management access with user management', '{\"users\": {\"create\": true, \"read\": true, \"update\": true, \"delete\": false}, \"roles\": {\"read\": true}, \"settings\": {\"read\": true}, \"dashboard\": {\"access\": true}}')",
+      "INSERT IGNORE INTO roles (id, name, description, permissions) VALUES (3, 'User', 'Standard user access', '{\"dashboard\": {\"access\": true}, \"settings\": {\"read\": true}}')",
+      "INSERT IGNORE INTO roles (id, name, description, permissions) VALUES (4, 'Guest', 'Limited guest access', '{\"dashboard\": {\"access\": true}}')"
     ];
 
     for (const insert of roleInserts) {
@@ -165,7 +206,7 @@ async function setupWithEnvUsers() {
     // Insert primary admin user
     try {
       await connection.execute(
-        'INSERT IGNORE INTO users (email, password_hash, role_id, first_name, last_name, is_active, email_verified) VALUES (?, ?, ?, ?, ?, ?, ?)',
+        'INSERT IGNORE INTO users (email, password_hash, role_id, first_name, last_name, is_active, email_verified, is_approved) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
         [
           process.env.ADMIN_EMAIL,
           adminPasswordHash,
@@ -173,7 +214,8 @@ async function setupWithEnvUsers() {
           process.env.ADMIN_FIRST_NAME,
           process.env.ADMIN_LAST_NAME,
           true,
-          true
+          true,
+          true // Admin users are automatically approved
         ]
       );
       console.log(`   ✅ Primary admin user added: ${process.env.ADMIN_EMAIL}`);
@@ -185,7 +227,7 @@ async function setupWithEnvUsers() {
     if (admin2PasswordHash && process.env.ADMIN2_EMAIL) {
       try {
         await connection.execute(
-          'INSERT IGNORE INTO users (email, password_hash, role_id, first_name, last_name, is_active, email_verified) VALUES (?, ?, ?, ?, ?, ?, ?)',
+          'INSERT IGNORE INTO users (email, password_hash, role_id, first_name, last_name, is_active, email_verified, is_approved) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
           [
             process.env.ADMIN2_EMAIL,
             admin2PasswordHash,
@@ -193,7 +235,8 @@ async function setupWithEnvUsers() {
             process.env.ADMIN2_FIRST_NAME || 'Admin',
             process.env.ADMIN2_LAST_NAME || 'User',
             true,
-            true
+            true,
+            true // Admin users are automatically approved
           ]
         );
         console.log(`   ✅ Secondary admin user added: ${process.env.ADMIN2_EMAIL}`);
@@ -202,7 +245,45 @@ async function setupWithEnvUsers() {
       }
     }
 
-    // Add app settings
+    // Add admin settings
+    console.log('⚙️ Adding admin settings...');
+    const adminSettingsInserts = [
+      // Theme & Appearance
+      "INSERT IGNORE INTO admin_settings (setting_key, setting_value, description) VALUES ('theme_mode', 'light', 'Default theme mode: light or dark')",
+      "INSERT IGNORE INTO admin_settings (setting_key, setting_value, description) VALUES ('css_style', 'default', 'CSS style theme: default, modern, classic, minimal, vibrant')",
+      "INSERT IGNORE INTO admin_settings (setting_key, setting_value, description) VALUES ('app_name', 'NextDash-B', 'Application name')",
+      "INSERT IGNORE INTO admin_settings (setting_key, setting_value, description) VALUES ('app_logo_url', '', 'Application logo URL')",
+      
+      // Access Control
+      "INSERT IGNORE INTO admin_settings (setting_key, setting_value, description) VALUES ('allow_guest_access', 'false', 'Allow guest users to access the system')",
+      "INSERT IGNORE INTO admin_settings (setting_key, setting_value, description) VALUES ('allow_user_signup', 'true', 'Allow new users to sign up')",
+      "INSERT IGNORE INTO admin_settings (setting_key, setting_value, description) VALUES ('require_user_approval', 'false', 'Require admin approval for new user accounts')",
+      "INSERT IGNORE INTO admin_settings (setting_key, setting_value, description) VALUES ('email_verification_required', 'false', 'Require email verification for new accounts')",
+      
+      // Front Page
+      "INSERT IGNORE INTO admin_settings (setting_key, setting_value, description) VALUES ('front_page_mode', 'login', 'Front page mode: login or html')",
+      "INSERT IGNORE INTO admin_settings (setting_key, setting_value, description) VALUES ('front_page_html', '', 'Custom HTML content for front page')",
+      
+      // Security
+      "INSERT IGNORE INTO admin_settings (setting_key, setting_value, description) VALUES ('session_timeout', '24', 'Session timeout in hours')",
+      "INSERT IGNORE INTO admin_settings (setting_key, setting_value, description) VALUES ('max_login_attempts', '5', 'Maximum login attempts before lockout')",
+      "INSERT IGNORE INTO admin_settings (setting_key, setting_value, description) VALUES ('lockout_duration', '30', 'Account lockout duration in minutes')",
+      "INSERT IGNORE INTO admin_settings (setting_key, setting_value, description) VALUES ('password_min_length', '8', 'Minimum password length')",
+      "INSERT IGNORE INTO admin_settings (setting_key, setting_value, description) VALUES ('password_require_special', 'false', 'Require special characters in passwords')",
+      "INSERT IGNORE INTO admin_settings (setting_key, setting_value, description) VALUES ('password_require_numbers', 'false', 'Require numbers in passwords')",
+      "INSERT IGNORE INTO admin_settings (setting_key, setting_value, description) VALUES ('password_require_uppercase', 'false', 'Require uppercase letters in passwords')"
+    ];
+
+    for (const insert of adminSettingsInserts) {
+      try {
+        await connection.execute(insert);
+        console.log('   ✅ Admin setting added');
+      } catch (err) {
+        console.log(`   ⚠️  Admin setting warning: ${err.message}`);
+      }
+    }
+
+    // Add legacy app settings for backward compatibility
     console.log('⚙️ Adding app settings...');
     const settingsInserts = [
       "INSERT IGNORE INTO app_settings (key_name, value, type, description, is_public) VALUES ('app_name', 'NextDash-B', 'string', 'Application name displayed in header', true)",
@@ -216,9 +297,9 @@ async function setupWithEnvUsers() {
     for (const insert of settingsInserts) {
       try {
         await connection.execute(insert);
-        console.log('   ✅ Setting added');
+        console.log('   ✅ App setting added');
       } catch (err) {
-        console.log(`   ⚠️  Setting warning: ${err.message}`);
+        console.log(`   ⚠️  App setting warning: ${err.message}`);
       }
     }
 
@@ -245,11 +326,15 @@ async function setupWithEnvUsers() {
 
     // Final check
     console.log('\n📊 Final database status:');
-    const tables = ['roles', 'users', 'app_settings', 'menu_items'];
+    const tables = ['roles', 'users', 'admin_settings', 'app_settings', 'menu_items', 'user_sessions', 'guest_users'];
     
     for (const table of tables) {
-      const [count] = await connection.execute(`SELECT COUNT(*) as count FROM ${table}`);
-      console.log(`   ${table}: ${count[0].count} records`);
+      try {
+        const [count] = await connection.execute(`SELECT COUNT(*) as count FROM ${table}`);
+        console.log(`   ${table}: ${count[0].count} records`);
+      } catch (err) {
+        console.log(`   ${table}: Table check failed - ${err.message}`);
+      }
     }
 
     // Show created users
@@ -265,6 +350,16 @@ async function setupWithEnvUsers() {
     if (process.env.ADMIN2_EMAIL) {
       console.log(`   • ${process.env.ADMIN2_EMAIL} / ${process.env.ADMIN2_PASSWORD}`);
     }
+    
+    console.log('\n✨ Features enabled:');
+    console.log('   🎨 Dark mode & 5 CSS themes (Default, Modern, Classic, Minimal, Vibrant)');
+    console.log('   ⚙️  Comprehensive admin settings dashboard');
+    console.log('   👥 User management with approval workflow');
+    console.log('   🔐 Role-based access control with granular permissions');
+    console.log('   🏠 Dynamic front page with login/HTML toggle');
+    console.log('   🔒 Security controls and session management');
+    console.log('   🎯 Guest access and signup configuration');
+    
     console.log('\n🚀 Run: npm run dev');
 
     await connection.end();

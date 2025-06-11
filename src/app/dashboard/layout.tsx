@@ -19,6 +19,7 @@ import {
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
 import { useTheme } from '@/contexts/ThemeContext';
+import { useAdminSettings } from '@/hooks/useAdminSettings';
 import Link from 'next/link';
 
 const { Header, Sider, Content } = Layout;
@@ -33,6 +34,7 @@ export default function DashboardLayout({
   const router = useRouter();
   const { user, loading, isAuthenticated, logout, canAccessUsers, canAccessRoles, canAccessSettings, isAdmin } = useAuth();
   const { themeMode, toggleThemeMode } = useTheme();
+  const { settings: adminSettings } = useAdminSettings();
 
   useEffect(() => {
     if (!loading && !isAuthenticated) {
@@ -101,6 +103,20 @@ export default function DashboardLayout({
     return items;
   };
 
+  const handleMenuClick = (key: string) => {
+    switch (key) {
+      case 'profile':
+        router.push('/dashboard/profile');
+        break;
+      case 'settings':
+        router.push('/dashboard/settings');
+        break;
+      case 'logout':
+        handleLogout();
+        break;
+    }
+  };
+
   const userMenuItems = [
     {
       key: 'profile',
@@ -119,7 +135,6 @@ export default function DashboardLayout({
       key: 'logout',
       icon: <LogoutOutlined />,
       label: 'Logout',
-      onClick: handleLogout,
     },
   ];
 
@@ -146,7 +161,10 @@ export default function DashboardLayout({
       >
         <div className="p-4 text-center border-b">
           <Title level={4} className="m-0">
-            {collapsed ? 'ND' : 'NextDash-B'}
+            {collapsed ? 
+              (adminSettings.app_name ? adminSettings.app_name.substring(0, 2).toUpperCase() : 'ND') : 
+              (adminSettings.app_name || 'NextDash-B')
+            }
           </Title>
         </div>
         
@@ -183,9 +201,34 @@ export default function DashboardLayout({
             
             <Button type="text" icon={<BellOutlined />} />
             
-            <Dropdown menu={{ items: userMenuItems }} placement="bottomRight">
+            <Dropdown 
+              menu={{ 
+                items: userMenuItems,
+                onClick: ({ key }) => handleMenuClick(key)
+              }} 
+              placement="bottomRight"
+            >
               <div className="flex items-center space-x-2 cursor-pointer">
-                <Avatar icon={<UserOutlined />} />
+                {user?.avatarUrl ? (
+                  <img
+                    src={user.avatarUrl}
+                    alt="Avatar"
+                    style={{
+                      width: 32,
+                      height: 32,
+                      borderRadius: '50%',
+                      objectFit: 'cover',
+                      border: '1px solid #d9d9d9'
+                    }}
+                    onError={(e) => {
+                      // Fallback to default avatar on error
+                      const target = e.target as HTMLImageElement;
+                      target.style.display = 'none';
+                    }}
+                  />
+                ) : (
+                  <Avatar icon={<UserOutlined />} />
+                )}
                 <span className="hidden md:inline">
                   {user?.firstName} {user?.lastName}
                 </span>

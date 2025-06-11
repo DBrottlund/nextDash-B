@@ -120,6 +120,31 @@ export function useAuth() {
     return hasPermission('settings', 'read') || isAdmin();
   };
 
+  const refreshUser = async () => {
+    if (!isAuthenticated) return;
+    
+    try {
+      const token = localStorage.getItem('auth_token');
+      if (!token) return;
+
+      const response = await fetch('/api/auth/me', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success) {
+          setUser(data.user);
+          localStorage.setItem('user', JSON.stringify(data.user));
+        }
+      }
+    } catch (error) {
+      console.error('Failed to refresh user data:', error);
+    }
+  };
+
   return {
     user,
     loading,
@@ -127,6 +152,7 @@ export function useAuth() {
     login,
     logout,
     checkAuth,
+    refreshUser,
     hasPermission,
     isAdmin,
     isManagerOrAbove,
