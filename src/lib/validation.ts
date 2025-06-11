@@ -45,6 +45,7 @@ export const updateUserSchema = z.object({
   email: z.string().email('Invalid email address').optional(),
   roleId: z.number().int().positive('Role ID must be a positive integer').optional(),
   isActive: z.boolean().optional(),
+  emailVerified: z.boolean().optional(),
   avatarUrl: z.string().url('Invalid avatar URL').optional().or(z.literal('')),
 });
 

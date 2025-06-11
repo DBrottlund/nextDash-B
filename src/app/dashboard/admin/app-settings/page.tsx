@@ -64,6 +64,7 @@ interface AdminSettings {
 
   // Transaction Notifications
   transaction_notifications_enabled: boolean;
+  account_created_email_enabled: boolean;
   transaction_notifications: {
     accountCreated: { email: boolean; inApp: boolean; };
     accountUpdated: { email: boolean; inApp: boolean; };
@@ -100,6 +101,7 @@ export default function AppSettingsPage() {
     fetchSettings();
   }, []);
 
+
   const fetchSettings = async () => {
     setLoading(true);
     try {
@@ -124,6 +126,16 @@ export default function AppSettingsPage() {
     }
   };
 
+  // Handle form value changes to auto-enable Account Created email when email verification is enabled
+  const handleValuesChange = (changedValues: any, allValues: any) => {
+    // Check if email_verification_required was just enabled
+    if (changedValues.email_verification_required === true) {
+      // Use the exact same approach that works for transaction_notifications_enabled
+      form.setFieldValue('transaction_notifications_enabled', true);
+      form.setFieldValue('account_created_email_enabled', true);
+    }
+  };
+
   const handleSave = async () => {
     try {
       setSaveLoading(true);
@@ -137,14 +149,83 @@ export default function AppSettingsPage() {
         setCSSStyle(values.css_style);
       }
 
+      // Merge with current settings to ensure we have all data
+      const mergedValues = { ...settings, ...values };
+      
+      // Sync the simple account_created_email_enabled field with the nested structure
+      if (mergedValues.account_created_email_enabled !== undefined) {
+        const currentTransactionSettings = mergedValues.transaction_notifications || {
+          accountCreated: { email: false, inApp: true },
+          accountUpdated: { email: true, inApp: true },
+          accountDeleted: { email: true, inApp: true },
+          userLogin: { email: false, inApp: false },
+          passwordChanged: { email: true, inApp: true },
+          profileUpdated: { email: false, inApp: true },
+          roleChanged: { email: true, inApp: true },
+          securityAlert: { email: true, inApp: true },
+          systemMaintenance: { email: true, inApp: true },
+          dataExport: { email: true, inApp: true },
+        };
+        
+        mergedValues.transaction_notifications = {
+          ...currentTransactionSettings,
+          accountCreated: {
+            ...currentTransactionSettings.accountCreated,
+            email: mergedValues.account_created_email_enabled,
+            inApp: currentTransactionSettings.accountCreated?.inApp ?? true,
+          }
+        };
+      }
+
+      // Auto-enable transaction notifications when email verification is required
+      if (mergedValues.email_verification_required === true) {
+        // Ensure transaction notifications are enabled
+        mergedValues.transaction_notifications_enabled = true;
+        mergedValues.account_created_email_enabled = true;
+        
+        // Get current transaction notification settings from merged data
+        const currentTransactionSettings = mergedValues.transaction_notifications || {
+          accountCreated: { email: false, inApp: true },
+          accountUpdated: { email: true, inApp: true },
+          accountDeleted: { email: true, inApp: true },
+          userLogin: { email: false, inApp: false },
+          passwordChanged: { email: true, inApp: true },
+          profileUpdated: { email: false, inApp: true },
+          roleChanged: { email: true, inApp: true },
+          securityAlert: { email: true, inApp: true },
+          systemMaintenance: { email: true, inApp: true },
+          dataExport: { email: true, inApp: true },
+        };
+        
+        // Ensure accountCreated email is enabled
+        mergedValues.transaction_notifications = {
+          ...currentTransactionSettings,
+          accountCreated: {
+            ...currentTransactionSettings.accountCreated,
+            email: true,
+            inApp: currentTransactionSettings.accountCreated?.inApp ?? true,
+          }
+        };
+      }
+      
+      // Use merged values for the API call
+      const finalValues = mergedValues;
+
       // Use the hook's updateSettings method for real-time updates
-      const result = await updateAdminSettings(values);
+      const result = await updateAdminSettings(finalValues);
       
       if (result.success) {
         // Reload theme settings to apply changes immediately
         await reloadSettings();
-        message.success('Settings saved successfully');
-        setSettings(values);
+        
+        // Refresh settings from server to ensure we have the latest saved values
+        await fetchSettings();
+        
+        if (finalValues.email_verification_required === true) {
+          message.success('Settings saved successfully. Transaction notifications have been auto-enabled for email verification.');
+        } else {
+          message.success('Settings saved successfully');
+        }
       } else {
         message.error(result.message || 'Failed to save settings');
       }
@@ -285,16 +366,6 @@ export default function AppSettingsPage() {
               label="Require User Approval"
               valuePropName="checked"
               extra="New users need admin approval before accessing the system"
-            >
-              <Switch />
-            </Form.Item>
-          </Col>
-          <Col span={12}>
-            <Form.Item
-              name="email_verification_required"
-              label="Email Verification Required"
-              valuePropName="checked"
-              extra="Users must verify their email before accessing the system"
             >
               <Switch />
             </Form.Item>
@@ -440,10 +511,28 @@ export default function AppSettingsPage() {
         <Row gutter={24}>
           <Col span={24}>
             <Form.Item
+              name="email_verification_required"
+              label="Email Verification Required"
+              valuePropName="checked"
+              extra="Users must verify their email before accessing the system. When enabled, this will automatically enable Transaction Notifications and Account Created email notifications."
+            >
+              <Switch />
+            </Form.Item>
+            
+            <Form.Item
               name="transaction_notifications_enabled"
               label="Enable Transaction Notifications"
               valuePropName="checked"
               extra="Master switch to enable/disable all transaction notifications app-wide"
+            >
+              <Switch />
+            </Form.Item>
+            
+            <Form.Item
+              name="account_created_email_enabled"
+              label="Account Created Email Notifications"
+              valuePropName="checked"
+              extra="Send email notifications when new accounts are created"
             >
               <Switch />
             </Form.Item>
@@ -459,23 +548,6 @@ export default function AppSettingsPage() {
                 <div>
                   <Title level={5} style={{ color: '#1890ff', marginBottom: 16 }}>Account Events</Title>
                   
-                  <Row gutter={[16, 12]}>
-                    <Col span={8}>
-                      <strong>Account Created</strong>
-                      <div style={{ fontSize: '12px', color: '#666' }}>When new accounts are created</div>
-                    </Col>
-                    <Col span={8}>
-                      <Form.Item name={['transaction_notifications', 'accountCreated', 'email']} valuePropName="checked" style={{ margin: 0 }}>
-                        <Switch size="small" /> Enable Email
-                      </Form.Item>
-                    </Col>
-                    <Col span={8}>
-                      <Form.Item name={['transaction_notifications', 'accountCreated', 'inApp']} valuePropName="checked" style={{ margin: 0 }}>
-                        <Switch size="small" /> Enable In-App
-                      </Form.Item>
-                    </Col>
-                  </Row>
-
                   <Row gutter={[16, 12]}>
                     <Col span={8}>
                       <strong>Account Updated</strong>
@@ -686,6 +758,7 @@ export default function AppSettingsPage() {
             form={form}
             layout="vertical"
             onFinish={handleSave}
+            onValuesChange={handleValuesChange}
           >
             <Tabs
               items={tabItems}

@@ -156,7 +156,37 @@ export class EmailService {
     email: string;
     firstName: string;
     lastName: string;
+    userId?: number;
+    requireVerification?: boolean;
   }): Promise<{ success: boolean; error?: string }> {
+    console.log('sendWelcomeEmail called with:', { 
+      email: user.email, 
+      requireVerification: user.requireVerification, 
+      userId: user.userId 
+    });
+    
+    let verificationToken = '';
+    let verificationUrl = '';
+    
+    // Generate verification token if required
+    if (user.requireVerification && user.userId) {
+      console.log('Generating verification token for user:', user.userId);
+      verificationToken = crypto.randomBytes(32).toString('hex');
+      const hashedToken = crypto.createHash('sha256').update(verificationToken).digest('hex');
+      const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+      
+      // Store verification token in database
+      await db.execute(
+        'INSERT INTO email_verifications (user_id, token_hash, expires_at) VALUES (?, ?, ?)',
+        [user.userId, hashedToken, expiresAt]
+      );
+      
+      verificationUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3001'}/api/auth/verify-email?token=${verificationToken}`;
+      console.log('Generated verification URL:', verificationUrl);
+    } else {
+      console.log('No verification required or missing userId');
+    }
+
     const content = `
       <h2>Welcome to NextDash-B, ${user.firstName}!</h2>
       <p>Thank you for joining NextDash-B. Your account has been successfully created.</p>
@@ -167,7 +197,25 @@ export class EmailService {
         <li>Name: ${user.firstName} ${user.lastName}</li>
       </ul>
       
-      <p>You can now log in to your dashboard and start using all the features available to you.</p>
+      ${user.requireVerification ? `
+        <div class="warning">
+          <h3>⚠️ Email Verification Required</h3>
+          <p><strong>Important:</strong> You must verify your email address before you can access your account.</p>
+          <p>Click the button below to verify your email address:</p>
+          
+          <a href="${verificationUrl}" class="button" style="background-color: #52c41a; border-color: #52c41a;">
+            Verify Email Address
+          </a>
+          
+          <p style="font-size: 12px; color: #666; margin-top: 20px;">
+            This verification link will expire in 24 hours. If you don't verify your email, you won't be able to log in.
+          </p>
+        </div>
+        
+        <p>After verifying your email, you can log in to your dashboard:</p>
+      ` : `
+        <p>You can now log in to your dashboard and start using all the features available to you:</p>
+      `}
       
       <a href="${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/login" class="button">
         Login to Dashboard

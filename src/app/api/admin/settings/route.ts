@@ -82,6 +82,60 @@ export async function PUT(request: NextRequest) {
       );
     }
 
+    // Sync the simple account_created_email_enabled field with the nested structure
+    if (settings.account_created_email_enabled !== undefined) {
+      if (!settings.transaction_notifications || typeof settings.transaction_notifications !== 'object') {
+        settings.transaction_notifications = {
+          accountCreated: { email: false, inApp: true },
+          accountUpdated: { email: true, inApp: true },
+          accountDeleted: { email: true, inApp: true },
+          userLogin: { email: false, inApp: false },
+          passwordChanged: { email: true, inApp: true },
+          profileUpdated: { email: false, inApp: true },
+          roleChanged: { email: true, inApp: true },
+          securityAlert: { email: true, inApp: true },
+          systemMaintenance: { email: true, inApp: true },
+          dataExport: { email: true, inApp: true },
+        };
+      }
+      
+      if (!settings.transaction_notifications.accountCreated) {
+        settings.transaction_notifications.accountCreated = { email: false, inApp: true };
+      }
+      
+      settings.transaction_notifications.accountCreated.email = settings.account_created_email_enabled;
+    }
+
+    // Special handling for email verification requirement
+    if (settings.email_verification_required === true) {
+      // Ensure transaction notifications are enabled at the top level
+      settings.transaction_notifications_enabled = true;
+      settings.account_created_email_enabled = true;
+      
+      // Auto-enable Account Created email notifications when email verification is required
+      if (settings.transaction_notifications && typeof settings.transaction_notifications === 'object') {
+        if (settings.transaction_notifications.accountCreated) {
+          settings.transaction_notifications.accountCreated.email = true;
+        } else {
+          settings.transaction_notifications.accountCreated = { email: true, inApp: true };
+        }
+      } else {
+        // If transaction_notifications doesn't exist, create it with account created email enabled
+        settings.transaction_notifications = {
+          accountCreated: { email: true, inApp: true },
+          accountUpdated: { email: true, inApp: true },
+          accountDeleted: { email: true, inApp: true },
+          userLogin: { email: false, inApp: false },
+          passwordChanged: { email: true, inApp: true },
+          profileUpdated: { email: false, inApp: true },
+          roleChanged: { email: true, inApp: true },
+          securityAlert: { email: true, inApp: true },
+          systemMaintenance: { email: true, inApp: true },
+          dataExport: { email: true, inApp: true },
+        };
+      }
+    }
+
     // Update each setting
     for (const [key, value] of Object.entries(settings)) {
       const stringValue = typeof value === 'object' ? JSON.stringify(value) : String(value);

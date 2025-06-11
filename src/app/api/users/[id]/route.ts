@@ -4,6 +4,7 @@ import { db } from '@/lib/db';
 import { updateUserSchema, validateSchema } from '@/lib/validation';
 import { HTTP_STATUS } from '@/lib/constants';
 import { permissions } from '@/lib/permissions';
+import { transactionNotificationService } from '@/lib/notifications';
 
 // Helper to authenticate and authorize requests
 async function authenticateRequest(request: NextRequest, requiredPermission: { resource: string; action: string }) {
@@ -170,6 +171,7 @@ export async function PUT(
                      key === 'lastName' ? 'last_name' :
                      key === 'roleId' ? 'role_id' :
                      key === 'isActive' ? 'is_active' :
+                     key === 'emailVerified' ? 'email_verified' :
                      key === 'avatarUrl' ? 'avatar_url' : key;
         updateFields.push(`${dbKey} = ?`);
         updateValues.push(value);
@@ -217,6 +219,22 @@ export async function PUT(
       WHERE u.id = ?`,
       [userId]
     );
+
+    // Send account updated transaction notification
+    if (updatedUser) {
+      transactionNotificationService.sendTransactionNotification({
+        userId: updatedUser.id,
+        transactionType: 'accountUpdated',
+        title: 'Account Updated',
+        message: `Your account information has been updated by an administrator.`,
+        data: {
+          updatedFields: Object.keys(updateData),
+          updatedBy: authResult.user!.id,
+        },
+      }).catch(error => {
+        console.error('Failed to send account updated notification:', error);
+      });
+    }
 
     return NextResponse.json({
       success: true,

@@ -28,6 +28,7 @@ export interface UpdateUserData {
   email?: string;
   roleId?: number;
   isActive?: boolean;
+  emailVerified?: boolean;
   avatarUrl?: string;
 }
 

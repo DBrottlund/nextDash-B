@@ -30,6 +30,7 @@ import {
 } from '@ant-design/icons';
 import ProtectedRoute from '@/components/auth/ProtectedRoute';
 import { useAuth } from '@/hooks/useAuth';
+import { useAdminSettings } from '@/hooks/useAdminSettings';
 
 const { Title } = Typography;
 const { Option } = Select;
@@ -72,6 +73,7 @@ export default function UsersPage() {
   });
 
   const { user: currentUser } = useAuth();
+  const { settings: adminSettings } = useAdminSettings();
 
   useEffect(() => {
     fetchUsers();
@@ -156,6 +158,7 @@ export default function UsersPage() {
       lastName: user.lastName,
       roleId: user.roleId,
       isActive: user.isActive,
+      emailVerified: user.emailVerified,
     });
   };
 
@@ -228,6 +231,23 @@ export default function UsersPage() {
   const handleModalOk = async () => {
     try {
       const values = await form.validateFields();
+      
+      // Ensure boolean values are properly typed and filter out undefined values
+      const formattedValues: any = {};
+      
+      // Copy all defined values
+      Object.keys(values).forEach(key => {
+        if (values[key] !== undefined) {
+          if (key === 'isActive' || key === 'emailVerified') {
+            // Ensure boolean values are properly typed
+            formattedValues[key] = Boolean(values[key]);
+          } else {
+            formattedValues[key] = values[key];
+          }
+        }
+      });
+      
+      
       const token = localStorage.getItem('auth_token');
 
       if (editingUser) {
@@ -238,7 +258,7 @@ export default function UsersPage() {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${token}`,
           },
-          body: JSON.stringify(values),
+          body: JSON.stringify(formattedValues),
         });
 
         const data = await response.json();
@@ -247,7 +267,15 @@ export default function UsersPage() {
           setModalVisible(false);
           fetchUsers();
         } else {
-          message.error(data.message || 'Failed to update user');
+          // Show detailed validation errors if available
+          if (data.errors) {
+            const errorMessages = Object.entries(data.errors)
+              .map(([field, errors]: [string, any]) => `${field}: ${Array.isArray(errors) ? errors.join(', ') : errors}`)
+              .join('\n');
+            message.error(`Validation errors:\n${errorMessages}`);
+          } else {
+            message.error(data.message || 'Failed to update user');
+          }
         }
       } else {
         // Create user
@@ -257,7 +285,7 @@ export default function UsersPage() {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${token}`,
           },
-          body: JSON.stringify(values),
+          body: JSON.stringify(formattedValues),
         });
 
         const data = await response.json();
@@ -266,7 +294,15 @@ export default function UsersPage() {
           setModalVisible(false);
           fetchUsers();
         } else {
-          message.error(data.message || 'Failed to create user');
+          // Show detailed validation errors if available
+          if (data.errors) {
+            const errorMessages = Object.entries(data.errors)
+              .map(([field, errors]: [string, any]) => `${field}: ${Array.isArray(errors) ? errors.join(', ') : errors}`)
+              .join('\n');
+            message.error(`Validation errors:\n${errorMessages}`);
+          } else {
+            message.error(data.message || 'Failed to create user');
+          }
         }
       }
     } catch (error) {
@@ -307,19 +343,31 @@ export default function UsersPage() {
     {
       title: 'Status',
       key: 'status',
-      render: (record: User) => (
-        <Space direction="vertical" size="small">
-          <Tag color={record.isActive ? 'green' : 'red'}>
-            {record.isActive ? 'Active' : 'Inactive'}
+      render: (record: User) => {
+        // Determine user status based on active and email verification
+        let statusText = '';
+        let statusColor = '';
+        
+        if (record.isActive && record.emailVerified) {
+          statusText = 'Verified';
+          statusColor = 'green';
+        } else if (record.isActive && !record.emailVerified) {
+          statusText = 'Active';
+          statusColor = 'blue';
+        } else if (!record.isActive && !record.emailVerified) {
+          statusText = 'Pending';
+          statusColor = 'orange';
+        } else {
+          statusText = 'Inactive';
+          statusColor = 'red';
+        }
+        
+        return (
+          <Tag color={statusColor}>
+            {statusText}
           </Tag>
-          <Tag color={record.isApproved ? 'green' : 'orange'}>
-            {record.isApproved ? 'Approved' : 'Pending'}
-          </Tag>
-          {record.emailVerified && (
-            <Tag color="blue" style={{ fontSize: '10px' }}>Verified</Tag>
-          )}
-        </Space>
-      ),
+        );
+      },
     },
     {
       title: 'Created',
@@ -557,14 +605,30 @@ export default function UsersPage() {
               </Select>
             </Form.Item>
 
-            <Form.Item
-              name="isActive"
-              label="Active"
-              valuePropName="checked"
-              initialValue={true}
-            >
-              <Switch />
-            </Form.Item>
+            <Row gutter={16}>
+              <Col span={12}>
+                <Form.Item
+                  name="isActive"
+                  label="Active"
+                  valuePropName="checked"
+                  initialValue={true}
+                >
+                  <Switch />
+                </Form.Item>
+              </Col>
+              {editingUser && (
+                <Col span={12}>
+                  <Form.Item
+                    name="emailVerified"
+                    label="Email Verified"
+                    valuePropName="checked"
+                    extra="Manually mark email as verified or unverified"
+                  >
+                    <Switch />
+                  </Form.Item>
+                </Col>
+              )}
+            </Row>
           </Form>
         </Modal>
       </div>

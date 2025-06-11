@@ -204,30 +204,46 @@ export async function POST(request: NextRequest) {
       [result.insertId]
     );
 
+    // Get admin settings to check if email verification is required
+    const emailVerificationRequired = await db.queryOne(
+      'SELECT setting_value FROM admin_settings WHERE setting_key = ?',
+      ['email_verification_required']
+    );
+    const requireVerification = emailVerificationRequired?.setting_value === 'true';
+
     // Send welcome email and transaction notification (don't block response if they fail)
     if (newUser) {
+      console.log(`Creating user ${newUser.email}, requireVerification: ${requireVerification}`);
+      
+      // Always send the welcome email with verification logic
       emailService.sendWelcomeEmail({
         email: newUser.email,
         firstName: newUser.firstName,
         lastName: newUser.lastName,
+        userId: newUser.id,
+        requireVerification: requireVerification,
+      }).then(result => {
+        console.log('Welcome email result:', result);
       }).catch(error => {
         console.error('Failed to send welcome email:', error);
       });
 
-      // Send account created transaction notification
-      transactionNotificationService.sendTransactionNotification({
-        userId: newUser.id,
-        transactionType: 'accountCreated',
-        title: 'Welcome to NextDash-B!',
-        message: `Your account has been successfully created. Welcome to NextDash-B, ${newUser.firstName}!`,
-        data: {
+      // Only send transaction notification if verification is NOT required (to avoid duplicate emails)
+      if (!requireVerification) {
+        transactionNotificationService.sendTransactionNotification({
           userId: newUser.id,
-          email: newUser.email,
-          roleName: newUser.roleName,
-        },
-      }).catch(error => {
-        console.error('Failed to send account created notification:', error);
-      });
+          transactionType: 'accountCreated',
+          title: 'Welcome to NextDash-B!',
+          message: `Your account has been successfully created. Welcome to NextDash-B, ${newUser.firstName}!`,
+          data: {
+            userId: newUser.id,
+            email: newUser.email,
+            roleName: newUser.roleName,
+          },
+        }).catch(error => {
+          console.error('Failed to send account created notification:', error);
+        });
+      }
     }
 
     return NextResponse.json({

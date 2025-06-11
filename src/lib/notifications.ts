@@ -89,16 +89,30 @@ export class TransactionNotificationService {
   // Get app-level notification configuration
   async getAppNotificationConfig(): Promise<AppNotificationConfig> {
     try {
-      const config = await db.queryOne(
+      // Get the main enabled flag
+      const enabledSetting = await db.queryOne(
+        'SELECT setting_value FROM admin_settings WHERE setting_key = ?',
+        ['transaction_notifications_enabled']
+      );
+      
+      const enabled = enabledSetting?.setting_value === 'true';
+      
+      // Get individual transaction notification settings
+      const transactionSettings = await db.queryOne(
         'SELECT setting_value FROM admin_settings WHERE setting_key = ?',
         ['transaction_notifications']
       );
-
-      if (config) {
-        return JSON.parse(config.setting_value);
+      
+      let transactionNotifications = defaultAppConfig.transactionNotifications;
+      if (transactionSettings) {
+        const parsed = JSON.parse(transactionSettings.setting_value);
+        transactionNotifications = parsed;
       }
 
-      return defaultAppConfig;
+      return {
+        enabled,
+        transactionNotifications
+      };
     } catch (error) {
       console.error('Error getting app notification config:', error);
       return defaultAppConfig;

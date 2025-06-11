@@ -105,7 +105,7 @@ export function useAuth() {
   };
 
   const canAccessUsers = (): boolean => {
-    return hasPermission('users', 'read') || isManagerOrAbove();
+    return isManagerOrAbove();
   };
 
   const canManageUsers = (): boolean => {

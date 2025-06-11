@@ -1,7 +1,7 @@
 'use client';
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Form, Input, Button, Card, Typography, Alert, Checkbox, Divider } from 'antd';
 import { UserOutlined, LockOutlined, GoogleOutlined } from '@ant-design/icons';
 import Link from 'next/link';
@@ -13,7 +13,16 @@ export default function LoginPage() {
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const router = useRouter();
+  const searchParams = useSearchParams();
+
+  useEffect(() => {
+    // Check if user was redirected from email verification
+    if (searchParams.get('verified') === 'true') {
+      setSuccessMessage('Email verified successfully! You can now log in.');
+    }
+  }, [searchParams]);
 
   const handleLogin = async (values: LoginCredentials) => {
     setLoading(true);
@@ -70,6 +79,17 @@ export default function LoginPage() {
           <Title level={2} className="mb-2">Welcome Back</Title>
           <Text type="secondary">Sign in to your account</Text>
         </div>
+
+        {successMessage && (
+          <Alert
+            message={successMessage}
+            type="success"
+            showIcon
+            className="mb-4"
+            closable
+            onClose={() => setSuccessMessage(null)}
+          />
+        )}
 
         {error && (
           <Alert
