@@ -33,6 +33,7 @@ import {
 } from '@ant-design/icons';
 import ProtectedRoute from '@/components/auth/ProtectedRoute';
 import { useTheme } from '@/contexts/ThemeContext';
+import { useAdminSettings } from '@/hooks/useAdminSettings';
 import dynamic from 'next/dynamic';
 
 // Dynamic import for WYSIWYG editor to avoid SSR issues
@@ -76,7 +77,8 @@ export default function AppSettingsPage() {
   const [saveLoading, setSaveLoading] = useState(false);
   const [settings, setSettings] = useState<AdminSettings | null>(null);
   const [previewVisible, setPreviewVisible] = useState(false);
-  const { themeMode, cssStyle, setThemeMode, setCSSStyle } = useTheme();
+  const { themeMode, cssStyle, setThemeMode, setCSSStyle, reloadSettings } = useTheme();
+  const { updateSettings: updateAdminSettings } = useAdminSettings();
 
   useEffect(() => {
     fetchSettings();
@@ -119,22 +121,16 @@ export default function AppSettingsPage() {
         setCSSStyle(values.css_style);
       }
 
-      const token = localStorage.getItem('auth_token');
-      const response = await fetch('/api/admin/settings', {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify({ settings: values }),
-      });
-
-      const data = await response.json();
-      if (data.success) {
+      // Use the hook's updateSettings method for real-time updates
+      const result = await updateAdminSettings(values);
+      
+      if (result.success) {
+        // Reload theme settings to apply changes immediately
+        await reloadSettings();
         message.success('Settings saved successfully');
         setSettings(values);
       } else {
-        message.error(data.message || 'Failed to save settings');
+        message.error(result.message || 'Failed to save settings');
       }
     } catch (error) {
       message.error('Failed to save settings');

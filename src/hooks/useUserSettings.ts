@@ -1,0 +1,222 @@
+'use client';
+
+import { useState, useEffect } from 'react';
+import { useAuth } from './useAuth';
+
+export interface UserSettings {
+  // App-specific settings that can be added later
+  notifications: {
+    email: boolean;
+    push: boolean;
+    inApp: boolean;
+  };
+  preferences: {
+    language: string;
+    timezone: string;
+    dateFormat: string;
+    currency: string;
+  };
+  ui: {
+    compactMode: boolean;
+    showWelcomeMessage: boolean;
+    defaultView: string;
+  };
+  privacy: {
+    profileVisible: boolean;
+    activityVisible: boolean;
+  };
+}
+
+const defaultSettings: UserSettings = {
+  notifications: {
+    email: true,
+    push: true,
+    inApp: true,
+  },
+  preferences: {
+    language: 'en',
+    timezone: 'UTC',
+    dateFormat: 'MM/DD/YYYY',
+    currency: 'USD',
+  },
+  ui: {
+    compactMode: false,
+    showWelcomeMessage: true,
+    defaultView: 'dashboard',
+  },
+  privacy: {
+    profileVisible: true,
+    activityVisible: false,
+  },
+};
+
+export function useUserSettings() {
+  const { user, isAuthenticated } = useAuth();
+  const [settings, setSettings] = useState<UserSettings>(defaultSettings);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+
+  // Load settings on mount
+  useEffect(() => {
+    loadSettings();
+  }, [isAuthenticated, user]);
+
+  const loadSettings = async () => {
+    setLoading(true);
+    try {
+      if (isAuthenticated && user) {
+        // Load from database for authenticated users
+        await loadFromDatabase();
+      } else {
+        // Load from localStorage for guests
+        loadFromLocalStorage();
+      }
+    } catch (error) {
+      console.error('Failed to load user settings:', error);
+      // Fallback to default settings
+      setSettings(defaultSettings);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadFromDatabase = async () => {
+    try {
+      const token = localStorage.getItem('auth_token');
+      const response = await fetch('/api/user/settings', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success && data.settings) {
+          // Merge with defaults to ensure all fields exist
+          setSettings({ ...defaultSettings, ...data.settings });
+        } else {
+          setSettings(defaultSettings);
+        }
+      } else {
+        // Fallback to localStorage if API fails
+        loadFromLocalStorage();
+      }
+    } catch (error) {
+      console.error('Failed to load settings from database:', error);
+      loadFromLocalStorage();
+    }
+  };
+
+  const loadFromLocalStorage = () => {
+    try {
+      const stored = localStorage.getItem('user_settings');
+      if (stored) {
+        const parsedSettings = JSON.parse(stored);
+        // Merge with defaults to ensure all fields exist
+        setSettings({ ...defaultSettings, ...parsedSettings });
+      } else {
+        setSettings(defaultSettings);
+      }
+    } catch (error) {
+      console.error('Failed to parse settings from localStorage:', error);
+      setSettings(defaultSettings);
+    }
+  };
+
+  const saveSettings = async (newSettings: Partial<UserSettings>) => {
+    setSaving(true);
+    try {
+      const updatedSettings = { ...settings, ...newSettings };
+      
+      if (isAuthenticated && user) {
+        // Save to database for authenticated users
+        await saveToDatabase(updatedSettings);
+      } else {
+        // Save to localStorage for guests
+        saveToLocalStorage(updatedSettings);
+      }
+      
+      setSettings(updatedSettings);
+      return { success: true };
+    } catch (error) {
+      console.error('Failed to save user settings:', error);
+      return { success: false, message: 'Failed to save settings' };
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const saveToDatabase = async (settingsToSave: UserSettings) => {
+    const token = localStorage.getItem('auth_token');
+    const response = await fetch('/api/user/settings', {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+      body: JSON.stringify({ settings: settingsToSave }),
+    });
+
+    if (!response.ok) {
+      // If database save fails, fallback to localStorage
+      console.warn('Database save failed, falling back to localStorage');
+      saveToLocalStorage(settingsToSave);
+    }
+
+    const data = await response.json();
+    if (!data.success) {
+      throw new Error(data.message || 'Failed to save to database');
+    }
+  };
+
+  const saveToLocalStorage = (settingsToSave: UserSettings) => {
+    localStorage.setItem('user_settings', JSON.stringify(settingsToSave));
+  };
+
+  const resetSettings = async () => {
+    return await saveSettings(defaultSettings);
+  };
+
+  const updateNotificationSettings = async (notifications: Partial<UserSettings['notifications']>) => {
+    return await saveSettings({
+      notifications: { ...settings.notifications, ...notifications }
+    });
+  };
+
+  const updatePreferences = async (preferences: Partial<UserSettings['preferences']>) => {
+    return await saveSettings({
+      preferences: { ...settings.preferences, ...preferences }
+    });
+  };
+
+  const updateUISettings = async (ui: Partial<UserSettings['ui']>) => {
+    return await saveSettings({
+      ui: { ...settings.ui, ...ui }
+    });
+  };
+
+  const updatePrivacySettings = async (privacy: Partial<UserSettings['privacy']>) => {
+    return await saveSettings({
+      privacy: { ...settings.privacy, ...privacy }
+    });
+  };
+
+  // Getter functions for easy access
+  const isGuestMode = !isAuthenticated;
+  const storageType = isAuthenticated ? 'database' : 'localStorage';
+
+  return {
+    settings,
+    loading,
+    saving,
+    isGuestMode,
+    storageType,
+    loadSettings,
+    saveSettings,
+    resetSettings,
+    updateNotificationSettings,
+    updatePreferences,
+    updateUISettings,
+    updatePrivacySettings,
+  };
+}

@@ -58,6 +58,10 @@ export function useAdminSettings() {
       if (data.success) {
         // Update local state immediately
         setSettings(prev => ({ ...prev, ...newSettings }));
+        
+        // Refetch to ensure we have the latest data
+        await fetchSettings();
+        
         return { success: true };
       } else {
         return { success: false, message: data.message };

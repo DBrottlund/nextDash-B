@@ -117,7 +117,7 @@ export function useAuth() {
   };
 
   const canAccessSettings = (): boolean => {
-    return hasPermission('settings', 'read') || isAdmin();
+    return user ? user.roleId <= 3 : false; // Allow Admin, Manager, and User
   };
 
   const refreshUser = async () => {

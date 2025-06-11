@@ -12,6 +12,7 @@ interface ThemeContextType {
   setThemeMode: (mode: ThemeMode) => void;
   setCSSStyle: (style: CSSStyle) => void;
   toggleThemeMode: () => void;
+  reloadSettings: () => Promise<void>;
 }
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
@@ -77,50 +78,73 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
   const [cssStyle, setCSSStyleState] = useState<CSSStyle>('default');
   const [isHydrated, setIsHydrated] = useState(false);
 
-  // Load theme settings from localStorage and admin settings on mount
-  useEffect(() => {
-    const loadThemeSettings = async () => {
-      try {
-        // First, try to load from localStorage for immediate application
-        const savedThemeMode = localStorage.getItem('themeMode') as ThemeMode;
-        const savedCSSStyle = localStorage.getItem('cssStyle') as CSSStyle;
-        
-        if (savedThemeMode && ['light', 'dark'].includes(savedThemeMode)) {
-          setThemeModeState(savedThemeMode);
-        }
-        
-        if (savedCSSStyle && Object.keys(cssStyles).includes(savedCSSStyle)) {
-          setCSSStyleState(savedCSSStyle);
-        }
+  const loadThemeSettings = async () => {
+    try {
+      // First, try to load from localStorage for immediate application
+      const savedThemeMode = localStorage.getItem('themeMode') as ThemeMode;
+      const savedCSSStyle = localStorage.getItem('cssStyle') as CSSStyle;
+      
+      if (savedThemeMode && ['light', 'dark'].includes(savedThemeMode)) {
+        setThemeModeState(savedThemeMode);
+      }
+      
+      if (savedCSSStyle && Object.keys(cssStyles).includes(savedCSSStyle)) {
+        setCSSStyleState(savedCSSStyle);
+      }
 
-        // Then try to load from admin settings API
-        try {
-          const response = await fetch('/api/settings/public');
-          const data = await response.json();
+      // Then try to load from admin settings API
+      try {
+        const response = await fetch('/api/settings/public');
+        const data = await response.json();
+        
+        if (data.success && data.data) {
+          const { theme_mode, css_style } = data.data;
           
-          if (data.success && data.data) {
-            const { theme_mode, css_style } = data.data;
-            
-            if (theme_mode && ['light', 'dark'].includes(theme_mode)) {
-              setThemeModeState(theme_mode);
-              localStorage.setItem('themeMode', theme_mode);
-            }
-            
-            if (css_style && Object.keys(cssStyles).includes(css_style)) {
-              setCSSStyleState(css_style);
-              localStorage.setItem('cssStyle', css_style);
-            }
+          if (theme_mode && ['light', 'dark'].includes(theme_mode)) {
+            setThemeModeState(theme_mode);
+            localStorage.setItem('themeMode', theme_mode);
           }
-        } catch (error) {
-          console.log('Could not load admin settings, using localStorage values');
+          
+          if (css_style && Object.keys(cssStyles).includes(css_style)) {
+            setCSSStyleState(css_style);
+            localStorage.setItem('cssStyle', css_style);
+          }
         }
       } catch (error) {
-        console.error('Error loading theme settings:', error);
-      } finally {
-        setIsHydrated(true);
+        console.log('Could not load admin settings, using localStorage values');
       }
-    };
+    } catch (error) {
+      console.error('Error loading theme settings:', error);
+    } finally {
+      setIsHydrated(true);
+    }
+  };
 
+  const reloadSettings = async () => {
+    try {
+      const response = await fetch('/api/settings/public');
+      const data = await response.json();
+      
+      if (data.success && data.data) {
+        const { theme_mode, css_style } = data.data;
+        
+        if (theme_mode && ['light', 'dark'].includes(theme_mode)) {
+          setThemeModeState(theme_mode);
+          localStorage.setItem('themeMode', theme_mode);
+        }
+        
+        if (css_style && Object.keys(cssStyles).includes(css_style)) {
+          setCSSStyleState(css_style);
+          localStorage.setItem('cssStyle', css_style);
+        }
+      }
+    } catch (error) {
+      console.log('Could not reload admin settings');
+    }
+  };
+
+  // Load theme settings from localStorage and admin settings on mount
+  useEffect(() => {
     loadThemeSettings();
   }, []);
 
@@ -189,6 +213,7 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
         setThemeMode,
         setCSSStyle,
         toggleThemeMode,
+        reloadSettings,
       }}>
         <ConfigProvider theme={{ algorithm: theme.defaultAlgorithm, token: cssStyles.default }}>
           {children}
@@ -204,6 +229,7 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
       setThemeMode,
       setCSSStyle,
       toggleThemeMode,
+      reloadSettings,
     }}>
       <ConfigProvider theme={antdTheme}>
         {children}

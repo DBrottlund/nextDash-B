@@ -161,12 +161,35 @@ export default function DashboardLayout({
         theme="light"
       >
         <div className="p-4 text-center border-b">
-          <Title level={4} className="m-0">
-            {collapsed ? 
-              (adminSettings.app_name ? adminSettings.app_name.substring(0, 2).toUpperCase() : 'ND') : 
-              (adminSettings.app_name || 'NextDash-B')
-            }
-          </Title>
+          {adminSettings.app_logo_url && !collapsed ? (
+            <div className="flex flex-col items-center">
+              <img
+                src={adminSettings.app_logo_url}
+                alt={adminSettings.app_name || 'Logo'}
+                style={{
+                  maxHeight: '40px',
+                  maxWidth: '120px',
+                  objectFit: 'contain'
+                }}
+                onError={(e) => {
+                  // Fallback to text if image fails to load
+                  const target = e.target as HTMLImageElement;
+                  target.style.display = 'none';
+                  const parent = target.parentElement;
+                  if (parent) {
+                    parent.innerHTML = `<h4 class="m-0 text-base font-semibold">${adminSettings.app_name || 'NextDash-B'}</h4>`;
+                  }
+                }}
+              />
+            </div>
+          ) : (
+            <Title level={4} className="m-0">
+              {collapsed ? 
+                (adminSettings.app_name ? adminSettings.app_name.substring(0, 2).toUpperCase() : 'ND') : 
+                (adminSettings.app_name || 'NextDash-B')
+              }
+            </Title>
+          )}
         </div>
         
         <Menu
