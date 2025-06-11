@@ -20,6 +20,7 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useAdminSettings } from '@/hooks/useAdminSettings';
+import NotificationsDropdown from '@/components/NotificationsDropdown';
 import Link from 'next/link';
 
 const { Header, Sider, Content } = Layout;
@@ -199,7 +200,7 @@ export default function DashboardLayout({
               />
             </Tooltip>
             
-            <Button type="text" icon={<BellOutlined />} />
+            <NotificationsDropdown />
             
             <Dropdown 
               menu={{ 

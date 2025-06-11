@@ -1,4 +1,4 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import { Inter } from 'next/font/google';
 import './globals.css';
 import '../styles/themes.css';
@@ -11,7 +11,11 @@ export const metadata: Metadata = {
   description: 'A modern, feature-rich SaaS dashboard boilerplate built with Next.js 14',
   keywords: 'dashboard, saas, nextjs, react, typescript, boilerplate',
   authors: [{ name: 'NextDash-B Team' }],
-  viewport: 'width=device-width, initial-scale=1',
+};
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
 };
 
 export default function RootLayout({
