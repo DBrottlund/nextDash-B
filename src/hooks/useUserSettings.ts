@@ -7,7 +7,6 @@ export interface UserSettings {
   // App-specific settings that can be added later
   notifications: {
     email: boolean;
-    push: boolean;
     inApp: boolean;
   };
   transactionNotifications: {
@@ -72,7 +71,6 @@ export interface UserSettings {
 const defaultSettings: UserSettings = {
   notifications: {
     email: true,
-    push: true,
     inApp: true,
   },
   transactionNotifications: {

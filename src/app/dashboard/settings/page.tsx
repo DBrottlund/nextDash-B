@@ -95,13 +95,6 @@ export default function SettingsPage() {
                 <Switch />
               </Form.Item>
               <Form.Item
-                name={['notifications', 'push']}
-                label="Push Notifications"
-                valuePropName="checked"
-              >
-                <Switch />
-              </Form.Item>
-              <Form.Item
                 name={['notifications', 'inApp']}
                 label="In-App Notifications"
                 valuePropName="checked"
