@@ -228,22 +228,23 @@ export async function POST(request: NextRequest) {
         console.error('Failed to send welcome email:', error);
       });
 
-      // Only send transaction notification if verification is NOT required (to avoid duplicate emails)
-      if (!requireVerification) {
-        transactionNotificationService.sendTransactionNotification({
+      // Send welcome notification (both in-app and email based on settings)
+      // This will respect the app-level settings for account created notifications
+      transactionNotificationService.sendTransactionNotification({
+        userId: newUser.id,
+        transactionType: 'accountCreated',
+        title: 'Welcome to NextDash-B!',
+        message: `Your account has been successfully created. Welcome to NextDash-B, ${newUser.firstName}! You can customize your notification preferences and other settings in your user settings.`,
+        actionUrl: '/dashboard/settings',
+        actionText: 'View Settings',
+        data: {
           userId: newUser.id,
-          transactionType: 'accountCreated',
-          title: 'Welcome to NextDash-B!',
-          message: `Your account has been successfully created. Welcome to NextDash-B, ${newUser.firstName}!`,
-          data: {
-            userId: newUser.id,
-            email: newUser.email,
-            roleName: newUser.roleName,
-          },
-        }).catch(error => {
-          console.error('Failed to send account created notification:', error);
-        });
-      }
+          email: newUser.email,
+          roleName: newUser.roleName,
+        },
+      }).catch(error => {
+        console.error('Failed to send welcome notification:', error);
+      });
     }
 
     return NextResponse.json({

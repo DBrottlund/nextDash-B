@@ -256,7 +256,7 @@ export class EmailService {
       // Generate reset token
       const resetToken = crypto.randomBytes(32).toString('hex');
       const resetTokenHash = crypto.createHash('sha256').update(resetToken).digest('hex');
-      const expiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
+      const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
 
       // Store reset token in database
       await db.execute(
@@ -288,7 +288,7 @@ export class EmailService {
         <div class="warning">
           <strong>Important:</strong>
           <ul>
-            <li>This link will expire in 15 minutes</li>
+            <li>This link will expire in 7 days</li>
             <li>If you didn't request this password reset, please ignore this email</li>
             <li>Your password will not be changed until you click the link above</li>
           </ul>
@@ -301,7 +301,7 @@ export class EmailService {
         to: user.email,
         subject: 'Reset Your NextDash-B Password',
         html: getEmailTemplate(content, 'Password Reset'),
-        text: `Password reset requested for NextDash-B. Click this link to reset: ${resetUrl} (expires in 15 minutes)`,
+        text: `Password reset requested for NextDash-B. Click this link to reset: ${resetUrl} (expires in 7 days)`,
       });
 
       return {

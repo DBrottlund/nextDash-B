@@ -215,8 +215,18 @@ export class TransactionNotificationService {
 
       const results = [];
 
-      // Send email notification if enabled at both app and user level
-      if (appTransactionConfig.email && userTransactionSettings.email) {
+      // Check if email verification is required (for accountCreated, skip email if verification required)
+      let skipEmail = false;
+      if (transactionType === 'accountCreated') {
+        const emailVerificationRequired = await db.queryOne(
+          'SELECT setting_value FROM admin_settings WHERE setting_key = ?',
+          ['email_verification_required']
+        );
+        skipEmail = emailVerificationRequired?.setting_value === 'true';
+      }
+
+      // Send email notification if enabled at both app and user level and not skipped
+      if (appTransactionConfig.email && userTransactionSettings.email && !skipEmail) {
         try {
           const emailResult = await this.sendTransactionEmail({
             to: user.email,
@@ -318,8 +328,8 @@ export class TransactionNotificationService {
   }): Promise<{ success: boolean; error?: string }> {
     try {
       await db.execute(
-        `INSERT INTO notifications (user_id, type, title, message, action_url, action_text, data, created_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, NOW())`,
+        `INSERT INTO notifications (user_id, type, title, message, action_url, action_text)
+         VALUES (?, ?, ?, ?, ?, ?)`,
         [
           params.userId,
           params.type,
@@ -327,7 +337,6 @@ export class TransactionNotificationService {
           params.message,
           params.actionUrl || null,
           params.actionText || null,
-          params.data ? JSON.stringify(params.data) : null,
         ]
       );
 
