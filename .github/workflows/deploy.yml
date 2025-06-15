@@ -96,20 +96,24 @@ jobs:
       run: |
         echo "📦 Creating deployment archive..."
 
-        # Create archive with specific inclusions to avoid issues
-        tar -czf nextdash-deployment.tar.gz \
-          --exclude='node_modules' \
-          --exclude='.git' \
-          --exclude='.next/cache' \
-          --exclude='*.log' \
-          --exclude='.env*' \
-          --exclude='coverage' \
-          --exclude='*.test.*' \
-          --exclude='__tests__' \
-          --exclude='.github' \
-          --exclude='README.md' \
-          --exclude='*.md' \
-          .
+        # Create a list of files to include, excluding problematic ones
+        find . -type f \
+          -not -path "./node_modules/*" \
+          -not -path "./.git/*" \
+          -not -path "./.next/cache/*" \
+          -not -name "*.log" \
+          -not -name ".env*" \
+          -not -path "./coverage/*" \
+          -not -name "*.test.*" \
+          -not -path "./__tests__/*" \
+          -not -path "./.github/*" \
+          -not -name "README.md" \
+          -not -name "*.md" \
+          -not -name "nextdash-deployment.tar.gz" \
+          > /tmp/files_to_archive.txt
+
+        # Create archive from file list
+        tar -czf nextdash-deployment.tar.gz -T /tmp/files_to_archive.txt
 
         # Verify archive was created
         if [ ! -f "nextdash-deployment.tar.gz" ]; then
