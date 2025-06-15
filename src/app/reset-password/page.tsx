@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { Form, Input, Button, Card, Typography, message, Alert, Spin } from 'antd';
 import { LockOutlined, CheckCircleOutlined, ArrowLeftOutlined } from '@ant-design/icons';
 import Link from 'next/link';
@@ -8,7 +8,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 
 const { Title, Text } = Typography;
 
-export default function ResetPasswordPage() {
+function ResetPasswordForm() {
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
   const [verifying, setVerifying] = useState(true);
@@ -220,5 +220,13 @@ export default function ResetPasswordPage() {
         </Card>
       </div>
     </div>
+  );
+}
+
+export default function ResetPasswordPage() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <ResetPasswordForm />
+    </Suspense>
   );
 }

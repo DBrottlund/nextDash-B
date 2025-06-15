@@ -3,6 +3,8 @@ import { db } from '@/lib/db';
 import { HTTP_STATUS } from '@/lib/constants';
 import crypto from 'crypto';
 
+export const dynamic = 'force-dynamic';
+
 // GET /api/auth/verify-email?token=xxx - Verify email with token
 export async function GET(request: NextRequest) {
   try {

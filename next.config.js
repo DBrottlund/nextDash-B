@@ -14,6 +14,10 @@ const nextConfig = {
   },
   // Docker support
   output: 'standalone',
+  // Skip static generation for dynamic routes
+  experimental: {
+    missingSuspenseWithCSRBailout: false,
+  },
   // Security headers
   async headers() {
     return [

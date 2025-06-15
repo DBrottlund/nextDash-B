@@ -3,6 +3,8 @@ import { auth } from '@/lib/auth';
 import { db } from '@/lib/db';
 import { HTTP_STATUS } from '@/lib/constants';
 
+export const dynamic = 'force-dynamic';
+
 // GET /api/profile - Get current user's profile
 export async function GET(request: NextRequest) {
   try {

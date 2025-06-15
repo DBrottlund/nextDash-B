@@ -4,6 +4,8 @@ import { db } from '@/lib/db';
 import { HTTP_STATUS } from '@/lib/constants';
 import { permissions } from '@/lib/permissions';
 
+export const dynamic = 'force-dynamic';
+
 // Helper to authenticate and authorize requests
 async function authenticateRequest(request: NextRequest, requiredPermission: { resource: string; action: string }) {
   const token = request.headers.get('authorization')?.replace('Bearer ', '') ||
