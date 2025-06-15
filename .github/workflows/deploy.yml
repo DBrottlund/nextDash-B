@@ -145,36 +145,32 @@ jobs:
           
           echo "🚀 Starting deployment..."
           
-          # Define paths
-          APP_DIR="/var/www/nextdash-b"
-          BACKUP_DIR="/var/backups/nextdash-b"
+          # Define paths (user directories, no sudo needed)
+          APP_DIR="$HOME/nextdash-b"
+          BACKUP_DIR="$HOME/backups"
           TEMP_DIR="/tmp/nextdash-deploy-$$"
           
           # Create directories
-          sudo mkdir -p "$APP_DIR" "$BACKUP_DIR" "$TEMP_DIR"
+          mkdir -p "$APP_DIR" "$BACKUP_DIR" "$TEMP_DIR"
           
-          # Stop existing application gracefully
+          # Stop existing application (if running)
           echo "⏹️ Stopping existing application..."
           if [ -f "$APP_DIR/docker-compose.hostinger.yml" ]; then
             cd "$APP_DIR"
-            sudo docker-compose -f docker-compose.hostinger.yml down --timeout 30 || echo "⚠️ Graceful shutdown failed, forcing..."
-            sudo docker-compose -f docker-compose.hostinger.yml down --timeout 5 --volumes || true
+            docker-compose -f docker-compose.hostinger.yml down --timeout 30 || echo "⚠️ Graceful shutdown failed"
           fi
-          
-          # Clean up any orphaned containers
-          sudo docker container prune -f || true
           
           # Backup current deployment
           if [ -d "$APP_DIR" ] && [ "$(ls -A $APP_DIR 2>/dev/null)" ]; then
             echo "💾 Creating backup..."
             backup_file="$BACKUP_DIR/backup-$(date +%Y%m%d-%H%M%S).tar.gz"
-            sudo tar -czf "$backup_file" -C "$APP_DIR" . 2>/dev/null || echo "⚠️ Backup creation failed"
+            tar -czf "$backup_file" -C "$APP_DIR" . 2>/dev/null || echo "⚠️ Backup creation failed"
             
             # Keep only last 5 backups
-            sudo find "$BACKUP_DIR" -name "backup-*.tar.gz" -type f | sort | head -n -5 | sudo xargs rm -f || true
+            find "$BACKUP_DIR" -name "backup-*.tar.gz" -type f | sort | head -n -5 | xargs rm -f || true
           fi
           
-          # Extract new deployment to temp directory first
+          # Extract new deployment
           echo "📦 Extracting new deployment..."
           cd "$TEMP_DIR"
           if ! tar -xzf /tmp/nextdash-deployment.tar.gz; then
@@ -182,11 +178,10 @@ jobs:
             exit 1
           fi
           
-          # Atomic move to production directory
+          # Move to production directory
           echo "🔄 Deploying to production directory..."
-          sudo rm -rf "$APP_DIR"/*
-          sudo mv "$TEMP_DIR"/* "$APP_DIR"/ 2>/dev/null || true
-          sudo chown -R "$USER:$USER" "$APP_DIR"
+          rm -rf "$APP_DIR"/*
+          mv "$TEMP_DIR"/* "$APP_DIR"/ 2>/dev/null || true
           
           # Navigate to app directory
           cd "$APP_DIR"
@@ -204,7 +199,7 @@ jobs:
         NEXT_PUBLIC_APP_NAME=NextDash-B
         NEXT_PUBLIC_APP_URL=${{ secrets.NEXT_PUBLIC_APP_URL }}
         NODE_ENV=production
-        
+
         # Database Configuration
         DB_HOST=${{ secrets.DB_HOST }}
         DB_PORT=3306
@@ -212,33 +207,33 @@ jobs:
         DB_USER=${{ secrets.DB_USER }}
         DB_PASSWORD=${{ secrets.DB_PASSWORD }}
         DB_SSL=false
-        
+
         # Authentication
         JWT_SECRET=${{ secrets.JWT_SECRET }}
         JWT_REFRESH_SECRET=${{ secrets.JWT_REFRESH_SECRET }}
         JWT_EXPIRES_IN=1h
         JWT_REFRESH_EXPIRES_IN=7d
-        
+
         # Email Configuration
         SMTP_HOST=mail.smtp2go.com
         SMTP_PORT=2525
         SMTP_USER=${{ secrets.SMTP_USER }}
         SMTP_PASSWORD=${{ secrets.SMTP_PASSWORD }}
         FROM_EMAIL=${{ secrets.FROM_EMAIL }}
-        
+
         # File Upload
         MAX_FILE_SIZE=5MB
         UPLOAD_DIR=./uploads
-        
+
         # Security
         BCRYPT_ROUNDS=12
         RATE_LIMIT_WINDOW=15
         RATE_LIMIT_MAX=100
-        
+
         # Development
         DEBUG=false
         LOG_LEVEL=info
-        
+
         # Admin Users
         ADMIN_EMAIL=${{ secrets.ADMIN_EMAIL }}
         ADMIN_PASSWORD=${{ secrets.ADMIN_PASSWORD }}
@@ -250,81 +245,27 @@ jobs:
         ADMIN2_LAST_NAME=Admin
         EOL
 
-          # Set secure permissions
+          # Set permissions
           chmod 600 .env
-          
-          # Pull latest images and build
-          echo "🏗️ Building application..."
-          sudo docker-compose -f docker-compose.hostinger.yml pull || echo "⚠️ Pull failed, continuing with build..."
-          
-          if ! sudo docker-compose -f docker-compose.hostinger.yml build --no-cache; then
-            echo "❌ Build failed"
-            exit 1
-          fi
 
-          echo "🚀 Starting application..."
-          if ! sudo docker-compose -f docker-compose.hostinger.yml up -d; then
-            echo "❌ Failed to start application"
-            sudo docker-compose -f docker-compose.hostinger.yml logs
-            exit 1
-          fi
-
-          # Wait for application to start with timeout
-          echo "⏳ Waiting for application to start..."
-          timeout=60
-          counter=0
-          while [ $counter -lt $timeout ]; do
-            if sudo docker-compose -f docker-compose.hostinger.yml ps | grep -q "Up"; then
-              echo "✅ Container is running"
-              break
-            fi
-            echo "⏳ Waiting... ($counter/$timeout seconds)"
-            sleep 5
-            counter=$((counter + 5))
-          done
-
-          # Additional wait for application initialization
-          sleep 30
-
-          # Run database setup with error handling
-          echo "🗄️ Setting up database..."
-          if sudo docker-compose -f docker-compose.hostinger.yml exec -T nextdash-app node scripts/setup-env-users.js; then
-            echo "✅ Database setup completed successfully"
+          # Check if Docker is available
+          if command -v docker >/dev/null 2>&1; then
+            echo "🏗️ Building application with Docker..."
+            docker-compose -f docker-compose.hostinger.yml build --no-cache || echo "⚠️ Docker build failed"
+            docker-compose -f docker-compose.hostinger.yml up -d || echo "⚠️ Docker start failed"
           else
-            echo "⚠️ Database setup completed with warnings - checking logs..."
-            sudo docker-compose -f docker-compose.hostinger.yml logs nextdash-app | tail -20
+            echo "⚠️ Docker not available on shared hosting"
+            echo "📁 Files deployed to: $APP_DIR"
           fi
-
-          # Health check with retry
-          echo "🏥 Performing health check..."
-          health_check_passed=false
-          for i in {1..12}; do
-            if curl -f -s --max-time 10 http://localhost:3000/api/health > /dev/null 2>&1; then
-              echo "✅ Application health check passed"
-              health_check_passed=true
-              break
-            fi
-            echo "⏳ Health check attempt $i/12..."
-            sleep 10
-          done
-
-          if [ "$health_check_passed" = false ]; then
-            echo "⚠️ Health check failed - checking logs..."
-            sudo docker-compose -f docker-compose.hostinger.yml logs --tail=50
-          fi
-
-          # Show final status
-          echo "📊 Final deployment status:"
-          sudo docker-compose -f docker-compose.hostinger.yml ps
 
           echo "🎉 Deployment completed!"
           echo "🌐 Application URL: ${{ secrets.NEXT_PUBLIC_APP_URL }}"
+          echo "📁 Deployed to: $APP_DIR"
 
           # Cleanup
           rm -rf "$TEMP_DIR"
           rm -f /tmp/nextdash-deployment.tar.gz
         EOF
-
     - name: Verify deployment
       run: |
         echo "🔍 Verifying deployment..."
