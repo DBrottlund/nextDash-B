@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Card,
   Typography,
@@ -39,6 +39,13 @@ export default function SettingsPage() {
   const { settings, loading, saving, isGuestMode, storageType, saveSettings, resetSettings } = useUserSettings();
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState('notifications');
+
+  // Update form when settings load
+  useEffect(() => {
+    if (settings) {
+      form.setFieldsValue(settings);
+    }
+  }, [settings, form]);
 
   const handleSave = async () => {
     try {
@@ -126,22 +133,6 @@ export default function SettingsPage() {
                 <div>
                   <h4 style={{ margin: '0 0 12px 0', color: '#1890ff' }}>Account Events</h4>
                   
-                  <Row gutter={[16, 8]} style={{ marginBottom: 12 }}>
-                    <Col span={12}>
-                      <strong>Account Created</strong>
-                      <div style={{ fontSize: '12px', color: '#666' }}>When a new account is created</div>
-                    </Col>
-                    <Col span={6}>
-                      <Form.Item name={['transactionNotifications', 'accountCreated', 'email']} valuePropName="checked" style={{ margin: 0 }}>
-                        <Switch size="small" /> Email
-                      </Form.Item>
-                    </Col>
-                    <Col span={6}>
-                      <Form.Item name={['transactionNotifications', 'accountCreated', 'inApp']} valuePropName="checked" style={{ margin: 0 }}>
-                        <Switch size="small" /> In-App
-                      </Form.Item>
-                    </Col>
-                  </Row>
 
                   <Row gutter={[16, 8]} style={{ marginBottom: 12 }}>
                     <Col span={12}>

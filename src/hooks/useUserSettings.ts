@@ -79,7 +79,7 @@ const defaultSettings: UserSettings = {
       inApp: true,
     },
     accountUpdated: {
-      email: false,
+      email: true,
       inApp: true,
     },
     accountDeleted: {
@@ -87,15 +87,15 @@ const defaultSettings: UserSettings = {
       inApp: true,
     },
     userLogin: {
-      email: false,
-      inApp: false,
+      email: true,
+      inApp: true,
     },
     passwordChanged: {
       email: true,
       inApp: true,
     },
     profileUpdated: {
-      email: false,
+      email: true,
       inApp: true,
     },
     roleChanged: {
@@ -162,6 +162,18 @@ export function useUserSettings() {
     }
   };
 
+  const deepMerge = (target: any, source: any): any => {
+    const result = { ...target };
+    for (const key in source) {
+      if (source[key] && typeof source[key] === 'object' && !Array.isArray(source[key])) {
+        result[key] = deepMerge(target[key] || {}, source[key]);
+      } else {
+        result[key] = source[key];
+      }
+    }
+    return result;
+  };
+
   const loadFromDatabase = async () => {
     try {
       const token = localStorage.getItem('auth_token');
@@ -174,8 +186,8 @@ export function useUserSettings() {
       if (response.ok) {
         const data = await response.json();
         if (data.success && data.settings) {
-          // Merge with defaults to ensure all fields exist
-          setSettings({ ...defaultSettings, ...data.settings });
+          // Deep merge with defaults to ensure all fields exist and new defaults apply
+          setSettings(deepMerge(defaultSettings, data.settings));
         } else {
           setSettings(defaultSettings);
         }
@@ -194,8 +206,8 @@ export function useUserSettings() {
       const stored = localStorage.getItem('user_settings');
       if (stored) {
         const parsedSettings = JSON.parse(stored);
-        // Merge with defaults to ensure all fields exist
-        setSettings({ ...defaultSettings, ...parsedSettings });
+        // Deep merge with defaults to ensure all fields exist and new defaults apply
+        setSettings(deepMerge(defaultSettings, parsedSettings));
       } else {
         setSettings(defaultSettings);
       }

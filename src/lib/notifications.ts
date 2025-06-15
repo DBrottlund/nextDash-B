@@ -154,11 +154,11 @@ export class TransactionNotificationService {
       // Return default settings if user hasn't set any
       const defaultSettings = {
         accountCreated: { email: true, inApp: true },
-        accountUpdated: { email: false, inApp: true },
+        accountUpdated: { email: true, inApp: true },
         accountDeleted: { email: true, inApp: true },
-        userLogin: { email: false, inApp: false },
+        userLogin: { email: true, inApp: true },
         passwordChanged: { email: true, inApp: true },
-        profileUpdated: { email: false, inApp: true },
+        profileUpdated: { email: true, inApp: true },
         roleChanged: { email: true, inApp: true },
         securityAlert: { email: true, inApp: true },
         systemMaintenance: { email: true, inApp: true },
