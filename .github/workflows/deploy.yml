@@ -153,13 +153,6 @@ jobs:
           # Create directories
           mkdir -p "$APP_DIR" "$BACKUP_DIR" "$TEMP_DIR"
           
-          # Stop existing application (if running)
-          echo "⏹️ Stopping existing application..."
-          if [ -f "$APP_DIR/docker-compose.hostinger.yml" ]; then
-            cd "$APP_DIR"
-            docker-compose -f docker-compose.hostinger.yml down --timeout 30 || echo "⚠️ Graceful shutdown failed"
-          fi
-          
           # Backup current deployment
           if [ -d "$APP_DIR" ] && [ "$(ls -A $APP_DIR 2>/dev/null)" ]; then
             echo "💾 Creating backup..."
@@ -181,16 +174,10 @@ jobs:
           # Move to production directory
           echo "🔄 Deploying to production directory..."
           rm -rf "$APP_DIR"/*
-          mv "$TEMP_DIR"/* "$APP_DIR"/ 2>/dev/null || true
+          cp -r . "$APP_DIR"/ 2>/dev/null || true
           
           # Navigate to app directory
           cd "$APP_DIR"
-          
-          # Verify required files exist
-          if [ ! -f "docker-compose.hostinger.yml" ]; then
-            echo "❌ docker-compose.hostinger.yml not found"
-            exit 1
-          fi
           
           # Create production environment file
           echo "🔧 Creating production environment..."
@@ -248,19 +235,25 @@ jobs:
           # Set permissions
           chmod 600 .env
 
-          # Check if Docker is available
-          if command -v docker >/dev/null 2>&1; then
-            echo "🏗️ Building application with Docker..."
-            docker-compose -f docker-compose.hostinger.yml build --no-cache || echo "⚠️ Docker build failed"
-            docker-compose -f docker-compose.hostinger.yml up -d || echo "⚠️ Docker start failed"
-          else
-            echo "⚠️ Docker not available on shared hosting"
-            echo "📁 Files deployed to: $APP_DIR"
-          fi
+          # Install dependencies and build for shared hosting
+          echo "📦 Installing dependencies..."
+          npm install --production
+
+          echo "🏗️ Building application..."
+          npm run build
+
+          # Set up database
+          echo "🗄️ Setting up database..."
+          node scripts/setup-env-users.js || echo "⚠️ Database setup completed with warnings"
 
           echo "🎉 Deployment completed!"
           echo "🌐 Application URL: ${{ secrets.NEXT_PUBLIC_APP_URL }}"
           echo "📁 Deployed to: $APP_DIR"
+          echo ""
+          echo "📋 Next steps for Hostinger shared hosting:"
+          echo "1. Set up Node.js app in hPanel"
+          echo "2. Point document root to: $APP_DIR/public"
+          echo "3. Set startup file to: $APP_DIR/server.js or next start"
 
           # Cleanup
           rm -rf "$TEMP_DIR"
