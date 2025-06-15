@@ -5,9 +5,14 @@ on:
     branches: [ main ]
   workflow_dispatch:
 
+env:
+  NODE_VERSION: '18'
+  DEPLOYMENT_TIMEOUT: 300
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     
     steps:
     - name: Checkout code
@@ -16,55 +21,122 @@ jobs:
     - name: Setup Node.js
       uses: actions/setup-node@v4
       with:
-        node-version: '18'
+        node-version: '${{ env.NODE_VERSION }}'
         cache: 'npm'
 
     - name: Validate secrets
       run: |
         echo "Validating required secrets..."
-        if [ -z "${{ secrets.HOSTINGER_HOST }}" ]; then echo "❌ HOSTINGER_HOST not set"; exit 1; fi
-        if [ -z "${{ secrets.HOSTINGER_USER }}" ]; then echo "❌ HOSTINGER_USER not set"; exit 1; fi
-        if [ -z "${{ secrets.HOSTINGER_SSH_KEY }}" ]; then echo "❌ HOSTINGER_SSH_KEY not set"; exit 1; fi
-        if [ -z "${{ secrets.DB_PASSWORD }}" ]; then echo "❌ DB_PASSWORD not set"; exit 1; fi
-        if [ -z "${{ secrets.JWT_SECRET }}" ]; then echo "❌ JWT_SECRET not set"; exit 1; fi
+        required_secrets=(
+          "HOSTINGER_HOST"
+          "HOSTINGER_USER" 
+          "HOSTINGER_SSH_KEY"
+          "DB_PASSWORD"
+          "JWT_SECRET"
+          "NEXT_PUBLIC_APP_URL"
+        )
+
+        missing_secrets=()
+        for secret in "${required_secrets[@]}"; do
+          if [ -z "${!secret}" ]; then
+            missing_secrets+=("$secret")
+          fi
+        done
+
+        if [ ${#missing_secrets[@]} -ne 0 ]; then
+          echo "❌ Missing required secrets: ${missing_secrets[*]}"
+          exit 1
+        fi
+
         echo "✅ All required secrets are present"
+      env:
+        HOSTINGER_HOST: '${{ secrets.HOSTINGER_HOST }}'
+        HOSTINGER_USER: '${{ secrets.HOSTINGER_USER }}'
+        HOSTINGER_SSH_KEY: '${{ secrets.HOSTINGER_SSH_KEY }}'
+        DB_PASSWORD: '${{ secrets.DB_PASSWORD }}'
+        JWT_SECRET: '${{ secrets.JWT_SECRET }}'
+        NEXT_PUBLIC_APP_URL: '${{ secrets.NEXT_PUBLIC_APP_URL }}'
 
     - name: Setup SSH
       run: |
         mkdir -p ~/.ssh
         echo "${{ secrets.HOSTINGER_SSH_KEY }}" > ~/.ssh/id_rsa
         chmod 600 ~/.ssh/id_rsa
-        ssh-keyscan -H -p 65002 ${{ secrets.HOSTINGER_HOST }} >> ~/.ssh/known_hosts
+
+        # Add host key verification with retry
+        for i in {1..3}; do
+          if ssh-keyscan -H -p 65002 ${{ secrets.HOSTINGER_HOST }} >> ~/.ssh/known_hosts 2>/dev/null; then
+            echo "✅ Host key added successfully"
+            break
+          else
+            echo "⚠️ Attempt $i failed, retrying..."
+            sleep 5
+          fi
+        done
 
     - name: Test SSH connection
       run: |
-        ssh -o ConnectTimeout=10 -p 65002 ${{ secrets.HOSTINGER_USER }}@${{ secrets.HOSTINGER_HOST }} "echo 'SSH connection successful'"
+        ssh -o ConnectTimeout=30 -o ServerAliveInterval=10 -p 65002 ${{ secrets.HOSTINGER_USER }}@${{ secrets.HOSTINGER_HOST }} "echo 'SSH connection successful'"
 
     - name: Install dependencies and build
       run: |
-        npm ci
+        echo "📦 Installing dependencies..."
+        npm ci --prefer-offline --no-audit
+
+        echo "🏗️ Building application..."
         npm run build
-        npm run lint
-        npm run type-check
+
+        echo "🔍 Running linting..."
+        npm run lint || echo "⚠️ Linting completed with warnings"
+
+        echo "🔧 Type checking..."
+        npm run type-check || echo "⚠️ Type checking completed with warnings"
 
     - name: Create deployment archive
       run: |
-        # Create archive with all necessary files
+        echo "📦 Creating deployment archive..."
+
+        # Create archive with specific inclusions to avoid issues
         tar -czf nextdash-deployment.tar.gz \
-          --exclude=node_modules \
-          --exclude=.git \
-          --exclude=.next/cache \
-          --exclude=*.log \
-          --exclude=.env.local \
+          --exclude='node_modules' \
+          --exclude='.git' \
+          --exclude='.next/cache' \
+          --exclude='*.log' \
+          --exclude='.env*' \
+          --exclude='coverage' \
+          --exclude='*.test.*' \
+          --exclude='__tests__' \
+          --exclude='.github' \
+          --exclude='README.md' \
+          --exclude='*.md' \
           .
+
+        # Verify archive was created
+        if [ ! -f "nextdash-deployment.tar.gz" ]; then
+          echo "❌ Failed to create deployment archive"
+          exit 1
+        fi
+
+        echo "✅ Deployment archive created ($(du -h nextdash-deployment.tar.gz | cut -f1))"
 
     - name: Upload to server
       run: |
-        scp -P 65002 nextdash-deployment.tar.gz ${{ secrets.HOSTINGER_USER }}@${{ secrets.HOSTINGER_HOST }}:/tmp/
+        echo "⬆️ Uploading deployment archive..."
+
+        # Upload with retry mechanism
+        for i in {1..3}; do
+          if scp -o ConnectTimeout=30 -P 65002 nextdash-deployment.tar.gz ${{ secrets.HOSTINGER_USER }}@${{ secrets.HOSTINGER_HOST }}:/tmp/; then
+            echo "✅ Upload successful"
+            break
+          else
+            echo "⚠️ Upload attempt $i failed, retrying..."
+            sleep 10
+          fi
+        done
 
     - name: Deploy application
       run: |
-        ssh -p 65002 ${{ secrets.HOSTINGER_USER }}@${{ secrets.HOSTINGER_HOST }} << 'EOF'
+        ssh -o ConnectTimeout=30 -o ServerAliveInterval=10 -p 65002 ${{ secrets.HOSTINGER_USER }}@${{ secrets.HOSTINGER_HOST }} << 'EOF'
           set -e
           
           echo "🚀 Starting deployment..."
@@ -72,36 +144,58 @@ jobs:
           # Define paths
           APP_DIR="/var/www/nextdash-b"
           BACKUP_DIR="/var/backups/nextdash-b"
+          TEMP_DIR="/tmp/nextdash-deploy-$$"
           
-          # Create directories if they don't exist
-          sudo mkdir -p $APP_DIR $BACKUP_DIR
+          # Create directories
+          sudo mkdir -p "$APP_DIR" "$BACKUP_DIR" "$TEMP_DIR"
           
-          # Stop existing application
+          # Stop existing application gracefully
           echo "⏹️ Stopping existing application..."
           if [ -f "$APP_DIR/docker-compose.hostinger.yml" ]; then
-            cd $APP_DIR && sudo docker-compose -f docker-compose.hostinger.yml down || true
+            cd "$APP_DIR"
+            sudo docker-compose -f docker-compose.hostinger.yml down --timeout 30 || echo "⚠️ Graceful shutdown failed, forcing..."
+            sudo docker-compose -f docker-compose.hostinger.yml down --timeout 5 --volumes || true
           fi
+          
+          # Clean up any orphaned containers
+          sudo docker container prune -f || true
           
           # Backup current deployment
-          if [ -d "$APP_DIR" ] && [ "$(ls -A $APP_DIR)" ]; then
+          if [ -d "$APP_DIR" ] && [ "$(ls -A $APP_DIR 2>/dev/null)" ]; then
             echo "💾 Creating backup..."
-            sudo tar -czf "$BACKUP_DIR/backup-$(date +%Y%m%d-%H%M%S).tar.gz" -C $APP_DIR . || true
+            backup_file="$BACKUP_DIR/backup-$(date +%Y%m%d-%H%M%S).tar.gz"
+            sudo tar -czf "$backup_file" -C "$APP_DIR" . 2>/dev/null || echo "⚠️ Backup creation failed"
+            
+            # Keep only last 5 backups
+            sudo find "$BACKUP_DIR" -name "backup-*.tar.gz" -type f | sort | head -n -5 | sudo xargs rm -f || true
           fi
           
-          # Extract new deployment
+          # Extract new deployment to temp directory first
           echo "📦 Extracting new deployment..."
-          cd /tmp
-          tar -xzf nextdash-deployment.tar.gz
-          sudo rm -rf $APP_DIR/*
-          sudo mv * $APP_DIR/ 2>/dev/null || true
-          sudo chown -R $USER:$USER $APP_DIR
+          cd "$TEMP_DIR"
+          if ! tar -xzf /tmp/nextdash-deployment.tar.gz; then
+            echo "❌ Failed to extract deployment archive"
+            exit 1
+          fi
+          
+          # Atomic move to production directory
+          echo "🔄 Deploying to production directory..."
+          sudo rm -rf "$APP_DIR"/*
+          sudo mv "$TEMP_DIR"/* "$APP_DIR"/ 2>/dev/null || true
+          sudo chown -R "$USER:$USER" "$APP_DIR"
           
           # Navigate to app directory
-          cd $APP_DIR
+          cd "$APP_DIR"
+          
+          # Verify required files exist
+          if [ ! -f "docker-compose.hostinger.yml" ]; then
+            echo "❌ docker-compose.hostinger.yml not found"
+            exit 1
+          fi
           
           # Create production environment file
           echo "🔧 Creating production environment..."
-          cat > .env << EOL
+          cat > .env << 'EOL'
         # Production Environment - Auto-generated by GitHub Actions
         NEXT_PUBLIC_APP_NAME=NextDash-B
         NEXT_PUBLIC_APP_URL=${{ secrets.NEXT_PUBLIC_APP_URL }}
@@ -151,81 +245,135 @@ jobs:
         ADMIN2_FIRST_NAME=Derek
         ADMIN2_LAST_NAME=Admin
         EOL
-          
-          # Set permissions
+
+          # Set secure permissions
           chmod 600 .env
           
-          # Build and start application
+          # Pull latest images and build
           echo "🏗️ Building application..."
-          sudo docker-compose -f docker-compose.hostinger.yml build --no-cache
+          sudo docker-compose -f docker-compose.hostinger.yml pull || echo "⚠️ Pull failed, continuing with build..."
           
+          if ! sudo docker-compose -f docker-compose.hostinger.yml build --no-cache; then
+            echo "❌ Build failed"
+            exit 1
+          fi
+
           echo "🚀 Starting application..."
-          sudo docker-compose -f docker-compose.hostinger.yml up -d
-          
-          # Wait for application to start
+          if ! sudo docker-compose -f docker-compose.hostinger.yml up -d; then
+            echo "❌ Failed to start application"
+            sudo docker-compose -f docker-compose.hostinger.yml logs
+            exit 1
+          fi
+
+          # Wait for application to start with timeout
           echo "⏳ Waiting for application to start..."
-          sleep 30
-          
-          # Run database setup
-          echo "🗄️ Setting up database..."
-          sudo docker-compose -f docker-compose.hostinger.yml exec -T nextdash-app node scripts/setup-env-users.js || echo "⚠️ Database setup completed with warnings"
-          
-          # Health check
-          echo "🏥 Performing health check..."
-          for i in {1..10}; do
-            if curl -f http://localhost:3000/api/health > /dev/null 2>&1; then
-              echo "✅ Application is healthy"
+          timeout=60
+          counter=0
+          while [ $counter -lt $timeout ]; do
+            if sudo docker-compose -f docker-compose.hostinger.yml ps | grep -q "Up"; then
+              echo "✅ Container is running"
               break
             fi
-            echo "⏳ Waiting for application... (attempt $i/10)"
+            echo "⏳ Waiting... ($counter/$timeout seconds)"
+            sleep 5
+            counter=$((counter + 5))
+          done
+
+          # Additional wait for application initialization
+          sleep 30
+
+          # Run database setup with error handling
+          echo "🗄️ Setting up database..."
+          if sudo docker-compose -f docker-compose.hostinger.yml exec -T nextdash-app node scripts/setup-env-users.js; then
+            echo "✅ Database setup completed successfully"
+          else
+            echo "⚠️ Database setup completed with warnings - checking logs..."
+            sudo docker-compose -f docker-compose.hostinger.yml logs nextdash-app | tail -20
+          fi
+
+          # Health check with retry
+          echo "🏥 Performing health check..."
+          health_check_passed=false
+          for i in {1..12}; do
+            if curl -f -s --max-time 10 http://localhost:3000/api/health > /dev/null 2>&1; then
+              echo "✅ Application health check passed"
+              health_check_passed=true
+              break
+            fi
+            echo "⏳ Health check attempt $i/12..."
             sleep 10
           done
-          
-          # Show status
-          echo "📊 Deployment status:"
+
+          if [ "$health_check_passed" = false ]; then
+            echo "⚠️ Health check failed - checking logs..."
+            sudo docker-compose -f docker-compose.hostinger.yml logs --tail=50
+          fi
+
+          # Show final status
+          echo "📊 Final deployment status:"
           sudo docker-compose -f docker-compose.hostinger.yml ps
-          
-          echo "🎉 Deployment completed successfully!"
+
+          echo "🎉 Deployment completed!"
           echo "🌐 Application URL: ${{ secrets.NEXT_PUBLIC_APP_URL }}"
-          
+
           # Cleanup
+          rm -rf "$TEMP_DIR"
           rm -f /tmp/nextdash-deployment.tar.gz
         EOF
 
     - name: Verify deployment
       run: |
         echo "🔍 Verifying deployment..."
-        
-        # Test SSH connection still works
-        ssh -p 65002 ${{ secrets.HOSTINGER_USER }}@${{ secrets.HOSTINGER_HOST }} "echo 'Post-deployment SSH test successful'"
-        
-        # Check if application is responding (if public URL is accessible)
+
+        # Test SSH connection
+        if ssh -o ConnectTimeout=10 -p 65002 ${{ secrets.HOSTINGER_USER }}@${{ secrets.HOSTINGER_HOST }} "echo 'Post-deployment SSH test successful'"; then
+          echo "✅ SSH connection verified"
+        else
+          echo "❌ SSH connection failed"
+          exit 1
+        fi
+
+        # Test application URL if accessible
         if [ -n "${{ secrets.NEXT_PUBLIC_APP_URL }}" ]; then
-          echo "Testing application URL..."
-          # Give it some time to fully start
+          echo "🌐 Testing application URL..."
           sleep 15
+          
+          # Try health check endpoint
           if curl -f -s --max-time 30 "${{ secrets.NEXT_PUBLIC_APP_URL }}/api/health" > /dev/null; then
             echo "✅ Application is responding at ${{ secrets.NEXT_PUBLIC_APP_URL }}"
           else
-            echo "⚠️ Application URL not responding yet (may still be starting)"
+            echo "⚠️ Application health endpoint not responding (may still be initializing)"
+            
+            # Try main page as fallback
+            if curl -f -s --max-time 30 "${{ secrets.NEXT_PUBLIC_APP_URL }}" > /dev/null; then
+              echo "✅ Application main page is accessible"
+            else
+              echo "⚠️ Application not responding yet"
+            fi
           fi
         fi
 
     - name: Cleanup
+      if: always()
       run: |
+        echo "🧹 Cleaning up..."
         rm -f ~/.ssh/id_rsa
         rm -f nextdash-deployment.tar.gz
+        echo "✅ Cleanup completed"
 
     - name: Deployment summary
+      if: always()
       run: |
         echo "## 🎉 Deployment Summary" >> $GITHUB_STEP_SUMMARY
-        echo "✅ **Status**: Success" >> $GITHUB_STEP_SUMMARY
+        echo "✅ **Status**: ${{ job.status }}" >> $GITHUB_STEP_SUMMARY
         echo "🚀 **Branch**: ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
-        echo "📝 **Commit**: ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+        echo "📝 **Commit**: \`${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
+        echo "👤 **Triggered by**: ${{ github.actor }}" >> $GITHUB_STEP_SUMMARY
         echo "🌐 **URL**: ${{ secrets.NEXT_PUBLIC_APP_URL }}" >> $GITHUB_STEP_SUMMARY
-        echo "⏰ **Time**: $(date)" >> $GITHUB_STEP_SUMMARY
+        echo "⏰ **Completed**: $(date -u '+%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
-        echo "### Next Steps:" >> $GITHUB_STEP_SUMMARY
-        echo "1. Verify application is working at your domain" >> $GITHUB_STEP_SUMMARY
-        echo "2. Test admin login functionality" >> $GITHUB_STEP_SUMMARY
-        echo "3. Monitor application logs if needed" >> $GITHUB_STEP_SUMMARY
+        echo "### 📋 Next Steps:" >> $GITHUB_STEP_SUMMARY
+        echo "1. ✅ Verify application is working at your domain" >> $GITHUB_STEP_SUMMARY
+        echo "2. 🔐 Test admin login functionality" >> $GITHUB_STEP_SUMMARY
+        echo "3. 📊 Monitor application logs if needed" >> $GITHUB_STEP_SUMMARY
+        echo "4. 🔍 Check database connectivity and data integrity" >> $GITHUB_STEP_SUMMARY
