@@ -72,17 +72,18 @@ export async function GET(request: NextRequest) {
     const params: any[] = [];
 
     if (validFilters.role !== undefined) {
-      whereClause += ' AND u.role_id = ?';
+      whereClause += ` AND u.role_id = $${params.length + 1}`;
       params.push(validFilters.role);
     }
 
     if (validFilters.active !== undefined) {
-      whereClause += ' AND u.is_active = ?';
+      whereClause += ` AND u.is_active = $${params.length + 1}`;
       params.push(validFilters.active);
     }
 
     if (validFilters.search) {
-      whereClause += ' AND (u.email LIKE ? OR u.first_name LIKE ? OR u.last_name LIKE ?)';
+      const paramCount = params.length;
+      whereClause += ` AND (u.email LIKE $${paramCount + 1} OR u.first_name LIKE $${paramCount + 2} OR u.last_name LIKE $${paramCount + 3})`;
       const searchParam = `%${validFilters.search}%`;
       params.push(searchParam, searchParam, searchParam);
     }
@@ -109,7 +110,7 @@ export async function GET(request: NextRequest) {
       LEFT JOIN roles r ON u.role_id = r.id
       ${whereClause}
       ORDER BY u.created_at DESC
-      LIMIT ? OFFSET ?
+      LIMIT $${params.length + 1} OFFSET $${params.length + 2}
     `;
     params.push(validFilters.limit, offset);
     
@@ -187,7 +188,7 @@ export async function POST(request: NextRequest) {
     // Create user
     const result = await db.execute(
       `INSERT INTO users (email, password_hash, role_id, first_name, last_name, is_active, email_verified)
-       VALUES (?, ?, ?, ?, ?, TRUE, FALSE)`,
+       VALUES ($1, $2, $3, $4, $5, TRUE, FALSE) RETURNING id`,
       [email, passwordHash, roleId, firstName, lastName]
     );
 
@@ -200,13 +201,13 @@ export async function POST(request: NextRequest) {
         r.name as roleName
       FROM users u
       LEFT JOIN roles r ON u.role_id = r.id
-      WHERE u.id = ?`,
-      [result.insertId]
+      WHERE u.id = $1`,
+      [result.rows[0].id]
     );
 
     // Get admin settings to check if email verification is required
     const emailVerificationRequired = await db.queryOne(
-      'SELECT setting_value FROM admin_settings WHERE setting_key = ?',
+      'SELECT setting_value FROM admin_settings WHERE setting_key = $1',
       ['email_verification_required']
     );
     const requireVerification = emailVerificationRequired?.setting_value === 'true';

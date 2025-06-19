@@ -33,16 +33,16 @@ export async function GET(request: NextRequest) {
     const offset = (page - 1) * limit;
 
     // Build WHERE clause
-    let whereConditions = ['user_id = ?'];
+    let whereConditions = ['user_id = $1'];
     let params: any[] = [payload.userId];
 
     if (isRead !== null && isRead !== undefined) {
-      whereConditions.push('is_read = ?');
+      whereConditions.push(`is_read = $${params.length + 1}`);
       params.push(isRead === 'true');
     }
 
     if (type) {
-      whereConditions.push('type = ?');
+      whereConditions.push(`type = $${params.length + 1}`);
       params.push(type);
     }
 
@@ -60,7 +60,7 @@ export async function GET(request: NextRequest) {
        FROM notifications 
        WHERE ${whereClause}
        ORDER BY created_at DESC 
-       LIMIT ? OFFSET ?`,
+       LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
       [...params, limit, offset]
     );
 
@@ -73,7 +73,7 @@ export async function GET(request: NextRequest) {
     // Get unread count
     const [{ unreadCount }] = await db.query(
       `SELECT COUNT(*) as unreadCount FROM notifications 
-       WHERE user_id = ? AND is_read = FALSE AND (expires_at IS NULL OR expires_at > NOW())`,
+       WHERE user_id = $1 AND is_read = FALSE AND (expires_at IS NULL OR expires_at > NOW())`,
       [payload.userId]
     );
 
@@ -142,14 +142,14 @@ export async function POST(request: NextRequest) {
 
     const result = await db.execute(
       `INSERT INTO notifications (user_id, title, message, type, action_url, action_text, expires_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+       VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id`,
       [userId, title, message, type, actionUrl, actionText, expiresAt]
     );
 
     return NextResponse.json({
       success: true,
       message: 'Notification created successfully',
-      data: { id: result.insertId }
+      data: { id: result.rows[0].id }
     });
 
   } catch (error) {

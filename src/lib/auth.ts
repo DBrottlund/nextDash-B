@@ -65,7 +65,7 @@ export const auth = {
         r.name as roleName, r.permissions
       FROM users u
       LEFT JOIN roles r ON u.role_id = r.id
-      WHERE u.email = ? AND u.is_active = TRUE
+      WHERE u.email = $1 AND u.is_active = TRUE
     `;
     
     const user = await db.queryOne<any>(query, [email]);
@@ -100,7 +100,7 @@ export const auth = {
         r.name as roleName, r.permissions
       FROM users u
       LEFT JOIN roles r ON u.role_id = r.id
-      WHERE u.id = ? AND u.is_active = TRUE
+      WHERE u.id = $1 AND u.is_active = TRUE
     `;
     
     const user = await db.queryOne<any>(query, [id]);
@@ -130,18 +130,18 @@ export const auth = {
     const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
 
     const result = await db.execute(
-      'INSERT INTO user_sessions (user_id, token_hash, refresh_token_hash, expires_at, user_agent, ip_address) VALUES (?, ?, ?, ?, ?, ?)',
+      'INSERT INTO user_sessions (user_id, token_hash, refresh_token_hash, expires_at, user_agent, ip_address) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id',
       [userId, tokenHash, refreshTokenHash, expiresAt, userAgent, ipAddress]
     );
 
-    return result.insertId;
+    return result.rows[0].id;
   },
 
   // Validate session
   async validateSession(token: string): Promise<SessionData | null> {
     const tokenHash = this.hashToken(token);
     const session = await db.queryOne<SessionData>(
-      'SELECT * FROM user_sessions WHERE token_hash = ? AND expires_at > NOW()',
+      'SELECT * FROM user_sessions WHERE token_hash = $1 AND expires_at > NOW()',
       [tokenHash]
     );
 
@@ -151,17 +151,17 @@ export const auth = {
   // Delete session
   async deleteSession(token: string): Promise<void> {
     const tokenHash = this.hashToken(token);
-    await db.execute('DELETE FROM user_sessions WHERE token_hash = ?', [tokenHash]);
+    await db.execute('DELETE FROM user_sessions WHERE token_hash = $1', [tokenHash]);
   },
 
   // Delete all user sessions
   async deleteUserSessions(userId: number): Promise<void> {
-    await db.execute('DELETE FROM user_sessions WHERE user_id = ?', [userId]);
+    await db.execute('DELETE FROM user_sessions WHERE user_id = $1', [userId]);
   },
 
   // Update last login
   async updateLastLogin(userId: number): Promise<void> {
-    await db.execute('UPDATE users SET last_login = NOW() WHERE id = ?', [userId]);
+    await db.execute('UPDATE users SET last_login = NOW() WHERE id = $1', [userId]);
   },
 
   // Clean expired sessions
