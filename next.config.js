@@ -12,8 +12,8 @@ const nextConfig = {
   env: {
     CUSTOM_KEY: process.env.CUSTOM_KEY,
   },
-  // Docker support
-  output: 'standalone',
+  // Docker support - disabled for Vercel deployment
+  // output: 'standalone',
   // Skip static generation for dynamic routes
   experimental: {
     missingSuspenseWithCSRBailout: false,

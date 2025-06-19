@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
       'front_page_mode'
     ];
 
-    const placeholders = publicSettings.map(() => '?').join(',');
+    const placeholders = publicSettings.map((_, index) => `$${index + 1}`).join(',');
     const settings = await db.query(
       `SELECT setting_key, setting_value FROM admin_settings WHERE setting_key IN (${placeholders})`,
       publicSettings

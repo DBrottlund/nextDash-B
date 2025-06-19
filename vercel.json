@@ -1,8 +1,9 @@
 {
+  "name": "nextdash-b",
   "buildCommand": "npm run build",
   "outputDirectory": ".next",
   "framework": "nextjs",
-  "regions": ["us-east-1"],
+  "regions": ["iad1"],
   "env": {
     "NODE_ENV": "production"
   },
