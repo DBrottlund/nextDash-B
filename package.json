@@ -15,6 +15,8 @@
     "setup-db": "node scripts/setup-database.js",
     "setup-postgres": "node scripts/setup-postgres.js",
     "test-postgres": "node scripts/setup-postgres.js test",
+    "deploy": "./scripts/deploy-vercel.sh",
+    "deploy:preview": "vercel",
     "test-db": "node scripts/test-connection.js",
     "diagnose-db": "node scripts/diagnose-connection.js",
     "setup-simple": "node scripts/setup-simple.js",
