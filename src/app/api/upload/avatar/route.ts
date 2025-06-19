@@ -72,7 +72,7 @@ export async function POST(request: NextRequest) {
     
     // Update user's avatar in database
     await db.execute(
-      'UPDATE users SET avatar_url = ?, updated_at = NOW() WHERE id = ?',
+      'UPDATE users SET avatar_url = $1, updated_at = NOW() WHERE id = $2',
       [avatarUrl, payload.userId]
     );
 

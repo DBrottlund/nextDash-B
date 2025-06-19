@@ -52,7 +52,7 @@ export async function GET(
         id, name, description, permissions, is_active as isActive,
         created_at as createdAt, updated_at as updatedAt
       FROM roles 
-      WHERE id = ?`,
+      WHERE id = $1`,
       [roleId]
     );
 
@@ -120,7 +120,7 @@ export async function PUT(
 
     // Check if role exists
     const existingRole = await db.query(
-      'SELECT id FROM roles WHERE id = ?',
+      'SELECT id FROM roles WHERE id = $1',
       [roleId]
     );
 
@@ -133,7 +133,7 @@ export async function PUT(
 
     // Check if role name already exists (excluding current role)
     const duplicateRole = await db.query(
-      'SELECT id FROM roles WHERE name = ? AND id != ?',
+      'SELECT id FROM roles WHERE name = $1 AND id != $2',
       [name, roleId]
     );
 
@@ -147,8 +147,8 @@ export async function PUT(
     // Update role
     await db.query(
       `UPDATE roles 
-       SET name = ?, description = ?, permissions = ?, is_active = ?, updated_at = NOW()
-       WHERE id = ?`,
+       SET name = $1, description = $2, permissions = $3, is_active = $4, updated_at = NOW()
+       WHERE id = $5`,
       [name, description, JSON.stringify(rolePermissions || {}), isActive, roleId]
     );
 
@@ -156,7 +156,7 @@ export async function PUT(
       `SELECT 
         id, name, description, permissions, is_active as isActive,
         created_at as createdAt, updated_at as updatedAt
-      FROM roles WHERE id = ?`,
+      FROM roles WHERE id = $1`,
       [roleId]
     );
 
@@ -207,7 +207,7 @@ export async function DELETE(
 
     // Check if role exists
     const existingRole = await db.query(
-      'SELECT id FROM roles WHERE id = ?',
+      'SELECT id FROM roles WHERE id = $1',
       [roleId]
     );
 
@@ -220,7 +220,7 @@ export async function DELETE(
 
     // Check if role is being used by any users
     const usersWithRole = await db.query(
-      'SELECT COUNT(*) as count FROM users WHERE role_id = ? AND is_active = TRUE',
+      'SELECT COUNT(*) as count FROM users WHERE role_id = $1 AND is_active = TRUE',
       [roleId]
     );
 
@@ -233,7 +233,7 @@ export async function DELETE(
 
     // Soft delete role
     await db.query(
-      'UPDATE roles SET is_active = FALSE, updated_at = NOW() WHERE id = ?',
+      'UPDATE roles SET is_active = FALSE, updated_at = NOW() WHERE id = $1',
       [roleId]
     );
 

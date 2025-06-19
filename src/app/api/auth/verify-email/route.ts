@@ -23,7 +23,7 @@ export async function GET(request: NextRequest) {
 
     // Find the verification record
     const verification = await db.queryOne(
-      'SELECT * FROM email_verifications WHERE token_hash = ? AND expires_at > NOW()',
+      'SELECT * FROM email_verifications WHERE token_hash = $1 AND expires_at > NOW()',
       [hashedToken]
     );
 
@@ -36,13 +36,13 @@ export async function GET(request: NextRequest) {
 
     // Update user email_verified status
     await db.execute(
-      'UPDATE users SET email_verified = TRUE, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+      'UPDATE users SET email_verified = TRUE, updated_at = CURRENT_TIMESTAMP WHERE id = $1',
       [verification.user_id]
     );
 
     // Delete the verification token (one-time use)
     await db.execute(
-      'DELETE FROM email_verifications WHERE id = ?',
+      'DELETE FROM email_verifications WHERE id = $1',
       [verification.id]
     );
 

@@ -40,7 +40,7 @@ export async function PUT(
 
     // Verify notification belongs to user
     const notification = await db.queryOne(
-      'SELECT id, user_id FROM notifications WHERE id = ?',
+      'SELECT id, user_id FROM notifications WHERE id = $1',
       [notificationId]
     );
 
@@ -61,8 +61,8 @@ export async function PUT(
     // Update notification
     await db.execute(
       `UPDATE notifications 
-       SET is_read = ?, read_at = ${isRead ? 'NOW()' : 'NULL'}
-       WHERE id = ?`,
+       SET is_read = $1, read_at = ${isRead ? 'NOW()' : 'NULL'}
+       WHERE id = $2`,
       [isRead, notificationId]
     );
 
@@ -108,7 +108,7 @@ export async function DELETE(
 
     // Verify notification belongs to user
     const notification = await db.queryOne(
-      'SELECT id, user_id FROM notifications WHERE id = ?',
+      'SELECT id, user_id FROM notifications WHERE id = $1',
       [notificationId]
     );
 
@@ -127,7 +127,7 @@ export async function DELETE(
     }
 
     // Delete notification
-    await db.execute('DELETE FROM notifications WHERE id = ?', [notificationId]);
+    await db.execute('DELETE FROM notifications WHERE id = $1', [notificationId]);
 
     return NextResponse.json({
       success: true,

@@ -177,7 +177,7 @@ export class EmailService {
       
       // Store verification token in database
       await db.execute(
-        'INSERT INTO email_verifications (user_id, token_hash, expires_at) VALUES (?, ?, ?)',
+        'INSERT INTO email_verifications (user_id, token_hash, expires_at) VALUES ($1, $2, $3)',
         [user.userId, hashedToken, expiresAt]
       );
       
@@ -244,7 +244,7 @@ export class EmailService {
     try {
       // Check if user exists
       const user = await db.queryOne(
-        'SELECT id, email, first_name, last_name FROM users WHERE email = ? AND is_active = TRUE',
+        'SELECT id, email, first_name, last_name FROM users WHERE email = $1 AND is_active = TRUE',
         [email]
       );
 
@@ -261,7 +261,7 @@ export class EmailService {
       // Store reset token in database
       await db.execute(
         `INSERT INTO password_resets (user_id, token_hash, expires_at, created_at) 
-         VALUES (?, ?, ?, NOW())
+         VALUES ($1, $2, $3, NOW())
          ON DUPLICATE KEY UPDATE 
          token_hash = VALUES(token_hash), 
          expires_at = VALUES(expires_at), 
@@ -331,7 +331,7 @@ export class EmailService {
         `SELECT pr.user_id, pr.expires_at, u.email, u.first_name, u.last_name
          FROM password_resets pr
          JOIN users u ON pr.user_id = u.id
-         WHERE pr.token_hash = ? AND pr.expires_at > NOW() AND u.is_active = TRUE`,
+         WHERE pr.token_hash = $1 AND pr.expires_at > NOW() AND u.is_active = TRUE`,
         [tokenHash]
       );
 
@@ -376,14 +376,14 @@ export class EmailService {
 
       // Update password
       await db.execute(
-        'UPDATE users SET password_hash = ?, updated_at = NOW() WHERE id = ?',
+        'UPDATE users SET password_hash = $1, updated_at = NOW() WHERE id = $2',
         [passwordHash, tokenVerification.userId]
       );
 
       // Delete used reset token
       const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
       await db.execute(
-        'DELETE FROM password_resets WHERE token_hash = ?',
+        'DELETE FROM password_resets WHERE token_hash = $1',
         [tokenHash]
       );
 

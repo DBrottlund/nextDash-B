@@ -91,8 +91,8 @@ export async function PUT(request: NextRequest) {
     // Update user profile
     await db.execute(
       `UPDATE users 
-       SET first_name = ?, last_name = ?, avatar_url = ?, updated_at = NOW()
-       WHERE id = ?`,
+       SET first_name = $1, last_name = $2, avatar_url = $3, updated_at = NOW()
+       WHERE id = $4`,
       [firstName.trim(), lastName.trim(), avatarUrl?.trim() || null, payload.userId]
     );
 

@@ -91,7 +91,7 @@ export class TransactionNotificationService {
     try {
       // Get the main enabled flag
       const enabledSetting = await db.queryOne(
-        'SELECT setting_value FROM admin_settings WHERE setting_key = ?',
+        'SELECT setting_value FROM admin_settings WHERE setting_key = $1',
         ['transaction_notifications_enabled']
       );
       
@@ -99,7 +99,7 @@ export class TransactionNotificationService {
       
       // Get individual transaction notification settings
       const transactionSettings = await db.queryOne(
-        'SELECT setting_value FROM admin_settings WHERE setting_key = ?',
+        'SELECT setting_value FROM admin_settings WHERE setting_key = $1',
         ['transaction_notifications']
       );
       
@@ -124,7 +124,7 @@ export class TransactionNotificationService {
     try {
       await db.execute(
         `INSERT INTO admin_settings (setting_key, setting_value, updated_at) 
-         VALUES (?, ?, NOW())
+         VALUES ($1, $2, NOW())
          ON DUPLICATE KEY UPDATE 
          setting_value = VALUES(setting_value), 
          updated_at = NOW()`,
@@ -142,7 +142,7 @@ export class TransactionNotificationService {
   async getUserNotificationSettings(userId: number): Promise<any> {
     try {
       const userSettings = await db.queryOne(
-        'SELECT settings FROM user_settings WHERE user_id = ?',
+        'SELECT settings FROM user_settings WHERE user_id = $1',
         [userId]
       );
 
@@ -205,7 +205,7 @@ export class TransactionNotificationService {
 
       // Get user details
       const user = await db.queryOne(
-        'SELECT email, first_name, last_name FROM users WHERE id = ? AND is_active = TRUE',
+        'SELECT email, first_name, last_name FROM users WHERE id = $1 AND is_active = TRUE',
         [userId]
       );
 
@@ -219,7 +219,7 @@ export class TransactionNotificationService {
       let skipEmail = false;
       if (transactionType === 'accountCreated') {
         const emailVerificationRequired = await db.queryOne(
-          'SELECT setting_value FROM admin_settings WHERE setting_key = ?',
+          'SELECT setting_value FROM admin_settings WHERE setting_key = $1',
           ['email_verification_required']
         );
         skipEmail = emailVerificationRequired?.setting_value === 'true';
@@ -329,7 +329,7 @@ export class TransactionNotificationService {
     try {
       await db.execute(
         `INSERT INTO notifications (user_id, type, title, message, action_url, action_text)
-         VALUES (?, ?, ?, ?, ?, ?)`,
+         VALUES ($1, $2, $3, $4, $5, $6)`,
         [
           params.userId,
           params.type,

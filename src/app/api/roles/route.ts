@@ -49,7 +49,7 @@ export async function GET(request: NextRequest) {
 
     if (search) {
       whereClause += includeInactive ? ' AND' : ' AND';
-      whereClause += ' (name LIKE ? OR description LIKE ?)';
+      whereClause += ` (name LIKE $${queryParams.length + 1} OR description LIKE $${queryParams.length + 2})`;
       queryParams.push(`%${search}%`, `%${search}%`);
     }
 
@@ -64,7 +64,7 @@ export async function GET(request: NextRequest) {
       FROM roles
       ${whereClause}
       ORDER BY id ASC
-      LIMIT ? OFFSET ?`,
+      LIMIT $${queryParams.length + 1} OFFSET $${queryParams.length + 2}`,
       [...queryParams, limit, offset]
     );
 
@@ -113,7 +113,7 @@ export async function POST(request: NextRequest) {
 
     // Check if role name already exists
     const existingRole = await db.query(
-      'SELECT id FROM roles WHERE name = ?',
+      'SELECT id FROM roles WHERE name = $1',
       [name]
     );
 
@@ -127,7 +127,7 @@ export async function POST(request: NextRequest) {
     // Create role
     const result: any = await db.query(
       `INSERT INTO roles (name, description, permissions, is_active, created_at, updated_at)
-       VALUES (?, ?, ?, ?, NOW(), NOW())`,
+       VALUES ($1, $2, $3, $4, NOW(), NOW())`,
       [name, description, JSON.stringify(rolePermissions || {}), isActive]
     );
 
@@ -135,7 +135,7 @@ export async function POST(request: NextRequest) {
       `SELECT 
         id, name, description, permissions, is_active as isActive,
         created_at as createdAt, updated_at as updatedAt
-      FROM roles WHERE id = ?`,
+      FROM roles WHERE id = $1`,
       [result.insertId]
     );
 

@@ -36,7 +36,7 @@ export async function GET(request: NextRequest) {
 
     // Try to get existing settings
     const existingSettings = await db.queryOne(
-      'SELECT settings FROM user_settings WHERE user_id = ?',
+      'SELECT settings FROM user_settings WHERE user_id = $1',
       [user.id]
     );
 
@@ -86,7 +86,7 @@ export async function PUT(request: NextRequest) {
     // Upsert user settings
     await db.execute(
       `INSERT INTO user_settings (user_id, settings, updated_at) 
-       VALUES (?, ?, NOW())
+       VALUES ($1, $2, NOW())
        ON DUPLICATE KEY UPDATE 
        settings = VALUES(settings), 
        updated_at = NOW()`,
@@ -117,7 +117,7 @@ export async function DELETE(request: NextRequest) {
 
     // Delete user settings (will reset to defaults)
     await db.execute(
-      'DELETE FROM user_settings WHERE user_id = ?',
+      'DELETE FROM user_settings WHERE user_id = $1',
       [user.id]
     );
 

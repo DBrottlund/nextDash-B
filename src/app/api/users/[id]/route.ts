@@ -66,7 +66,7 @@ export async function GET(
         r.name as roleName, r.permissions
       FROM users u
       LEFT JOIN roles r ON u.role_id = r.id
-      WHERE u.id = ?`,
+      WHERE u.id = $1`,
       [userId]
     );
 
@@ -132,7 +132,7 @@ export async function PUT(
     }
 
     // Check if user exists and get their role for permission check
-    const existingUser = await db.queryOne('SELECT id, role_id FROM users WHERE id = ?', [userId]);
+    const existingUser = await db.queryOne('SELECT id, role_id FROM users WHERE id = $1', [userId]);
     if (!existingUser) {
       return NextResponse.json(
         { success: false, message: 'User not found' },
@@ -173,7 +173,7 @@ export async function PUT(
                      key === 'isActive' ? 'is_active' :
                      key === 'emailVerified' ? 'email_verified' :
                      key === 'avatarUrl' ? 'avatar_url' : key;
-        updateFields.push(`${dbKey} = ?`);
+        updateFields.push(`${dbKey} = $${updateValues.length + 1}`);
         updateValues.push(value);
       }
     });
@@ -188,7 +188,7 @@ export async function PUT(
     // If email is being updated, check for conflicts
     if (updateData.email) {
       const emailConflict = await db.queryOne(
-        'SELECT id FROM users WHERE email = ? AND id != ?',
+        'SELECT id FROM users WHERE email = $1 AND id != $2',
         [updateData.email, userId]
       );
       if (emailConflict) {
@@ -202,7 +202,7 @@ export async function PUT(
     // Update user
     updateValues.push(userId);
     await db.execute(
-      `UPDATE users SET ${updateFields.join(', ')}, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
+      `UPDATE users SET ${updateFields.join(', ')}, updated_at = CURRENT_TIMESTAMP WHERE id = $${updateValues.length}`,
       updateValues
     );
 
@@ -216,7 +216,7 @@ export async function PUT(
         r.name as roleName
       FROM users u
       LEFT JOIN roles r ON u.role_id = r.id
-      WHERE u.id = ?`,
+      WHERE u.id = $1`,
       [userId]
     );
 
@@ -287,7 +287,7 @@ export async function DELETE(
     }
 
     // Check if user exists and get their role for permission check
-    const userToDelete = await db.queryOne('SELECT id, email, role_id FROM users WHERE id = ?', [userId]);
+    const userToDelete = await db.queryOne('SELECT id, email, role_id FROM users WHERE id = $1', [userId]);
     if (!userToDelete) {
       return NextResponse.json(
         { success: false, message: 'User not found' },
@@ -304,7 +304,7 @@ export async function DELETE(
     }
 
     // Delete user (this will cascade delete sessions due to foreign key)
-    await db.execute('DELETE FROM users WHERE id = ?', [userId]);
+    await db.execute('DELETE FROM users WHERE id = $1', [userId]);
 
     return NextResponse.json({
       success: true,

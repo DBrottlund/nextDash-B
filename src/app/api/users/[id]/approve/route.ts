@@ -51,7 +51,7 @@ export async function POST(
 
     // Check if user exists
     const users = await db.query(
-      'SELECT id, email, is_approved FROM users WHERE id = ?',
+      'SELECT id, email, is_approved FROM users WHERE id = $1',
       [userId]
     );
 
@@ -74,8 +74,8 @@ export async function POST(
     // Approve the user
     await db.query(
       `UPDATE users 
-       SET is_approved = TRUE, approved_by = ?, approved_at = NOW(), updated_at = NOW()
-       WHERE id = ?`,
+       SET is_approved = TRUE, approved_by = $1, approved_at = NOW(), updated_at = NOW()
+       WHERE id = $2`,
       [approver.id, userId]
     );
 
@@ -113,7 +113,7 @@ export async function DELETE(
 
     // Check if user exists
     const users = await db.query(
-      'SELECT id, email, is_approved FROM users WHERE id = ?',
+      'SELECT id, email, is_approved FROM users WHERE id = $1',
       [userId]
     );
 
@@ -137,7 +137,7 @@ export async function DELETE(
     await db.query(
       `UPDATE users 
        SET is_approved = FALSE, approved_by = NULL, approved_at = NULL, updated_at = NOW()
-       WHERE id = ?`,
+       WHERE id = $1`,
       [userId]
     );
 
